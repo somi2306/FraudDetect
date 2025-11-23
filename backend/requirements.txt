@@ -8,3 +8,8 @@ opencv-python
 numpy
 kagglehub
 openpyxl
+ultralytics
+opencv-python-headless # OpenCV sans interface graphique
+easyocr
+torch
+torchvision

@@ -30,3 +30,6 @@ __pycache__/
 
 /backend/app/data/cheques/cih/*
 !/backend/app/data/cheques/cih/.gitkeep
+
+/backend/app/data/cih-zones/*
+!/backend/app/data/cih-zones/.gitkeep
