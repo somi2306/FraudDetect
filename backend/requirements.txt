@@ -4,3 +4,7 @@ num2words
 imgkit
 playwright
 pillow
+opencv-python
+numpy
+kagglehub
+openpyxl
