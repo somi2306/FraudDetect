@@ -1,5 +1,3 @@
-# FraudDetect-feature-auth/backend/app/training/generer_signatures.py
-
 import cv2
 import numpy as np
 import os
