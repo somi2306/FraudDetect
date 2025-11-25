@@ -39,3 +39,6 @@ __pycache__/
 
 /backend/app/data/annotation/*
 !/backend/app/data/annotation/.gitkeep
+
+/backend/runs/*
+!/backend/runs/.gitkeep
