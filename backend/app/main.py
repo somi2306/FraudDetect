@@ -1,20 +1,21 @@
-import os
-import psycopg2
-from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# Charger les variables d'environnement depuis .env
-load_dotenv()
+app = FastAPI()
 
-try:
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USERNAME"),
-        password=os.getenv("DB_PASSWORD"),
-        sslmode="require"  # important pour Supabase
-    )
-    print("✅ Connexion PostgreSQL réussie !")
-    conn.close()
-except Exception as e:
-    print("❌ Erreur de connexion :", e)
+# Autoriser ton frontend React à communiquer avec FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # adresse de ton frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    return {"message": "Bienvenue sur ton backend FastAPI 🚀"}
+
+@app.get("/predict")
+def predict():
+    return {"result": "Voici un exemple de réponse du backend"}
