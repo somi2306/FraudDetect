@@ -2,42 +2,41 @@
 from ultralytics import YOLO
 import os
 
-# Chemin vers le fichier de configuration YAML créé à l'Étape 1.2
-# Ajustez ce chemin selon l'endroit où vous placez 'cih-zones/data.yaml'
-# backend/app/training/train_yolo.py
-
-# ... (le reste des imports et la fonction train_detection_model restent inchangés)
-
-# Chemin vers le fichier de configuration YAML (CORRECTION APPORTÉE ICI)
-# Le script est dans '.../app/training'. On remonte d'un niveau (..), puis on descend dans 'data/cih-zones'.
+# Chemins d'accès. Le script est dans 'training', data.yaml est dans 'data/annotation'.
 DATA_YAML_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 
-    "..", "data", "cih-zones", "data.yaml"
+    "..", "data", "annotation", "data.yaml"
 )) 
 
-PROJECT_NAME = "cheque_detection_cih"
+# Nom du projet, YOLO ajoutera un index (cheque_detection_cih, cheque_detection_cih2, etc.)
+PROJECT_NAME = "cheque_detection_combined" 
 
 def train_detection_model():
     """Charge un modèle pré-entraîné (YOLOv8n) et l'entraîne sur les données du chèque."""
     
-    # 1. Charger un modèle initial (YOLOv8n = nano, le plus rapide et léger)
+    # Vérification essentielle avant le lancement
+    if not os.path.exists(DATA_YAML_PATH):
+        print(f"ERREUR FATALE: Le fichier data.yaml est introuvable à : {DATA_YAML_PATH}")
+        return
+
     print("Chargement du modèle YOLOv8n...")
     model = YOLO('yolov8n.pt') 
 
     # 2. Entraînement
     print(f"Lancement de l'entraînement avec le fichier de données: {DATA_YAML_PATH}")
+    
     results = model.train(
         data=DATA_YAML_PATH, 
-        epochs=100,      # Nombre d'époques (à augmenter pour de meilleurs résultats)
-        imgsz=640,       # Taille des images pour l'entraînement
+        epochs=100,     # Augmentez à 100 ou plus pour un vrai résultat
+        imgsz=640,       
         project=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "runs")),
         name=PROJECT_NAME,
-        batch=16,        # Taille du lot (à ajuster selon votre VRAM/mémoire GPU)
-        workers=8        # Nombre de travailleurs de données
+        batch=16,        
+        workers=8        
     )
     
     print("\n✅ Entraînement terminé.")
-    # Le modèle sera sauvegardé dans runs/detect/cheque_detection_cih/weights/best.pt
+    # Le modèle sera sauvegardé dans runs/detect/cheque_detection_combined/weights/best.pt
 
 if __name__ == '__main__':
     train_detection_model()
