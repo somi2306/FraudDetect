@@ -1,0 +1,6 @@
+faker
+pandas
+num2words
+imgkit
+playwright
+pillow

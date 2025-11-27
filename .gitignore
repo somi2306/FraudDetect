@@ -42,3 +42,4 @@ __pycache__/
 
 /backend/runs/*
 !/backend/runs/.gitkeep
+!/backend/app/data/cheques/cih/.gitkeep
