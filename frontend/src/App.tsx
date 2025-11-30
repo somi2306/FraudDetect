@@ -1,48 +1,36 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
-import SignUpPage from './pages/SignUpPage';
-import SignInPage from './pages/SignInPage';
+// FraudDetect-feature-auth/frontend/src/App.tsx
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import AuthPage from './pages/auth/AuthPage';
+import AuthCallbackPage from './pages/auth-callback/AuthCallbackPage';
+import ProfilePage from './pages/profile/ProfilePage';
+import { AuthenticateWithRedirectCallback, useUser } from "@clerk/clerk-react";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!clerkPubKey) {
-  throw new Error("Missing Publishable Key");
-}
+import SignUpWithEmail from "./components/SignUpWithEmail";
+import FloatingShape from "./components/FloatingShape";
 
-function ClerkProviderWithRoutes() {
-  const navigate = useNavigate();
-
-  return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      routerPush={(to: string) => navigate(to)}
-      routerReplace={(to: string) => navigate(to, { replace: true })}
-    >
-      <Routes>
-        <Route path="/sign-in/*" element={<SignInPage />} />
-        <Route path="/sign-up/*" element={<SignUpPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <>
-              <SignedIn>
-                <div>Dashboard</div>
-              </SignedIn>
-              <SignedOut>
-                <RedirectToSignIn />
-              </SignedOut>
-            </>
-          }
-        />
-      </Routes>
-    </ClerkProvider>
-  );
-}
-
-export default function App() {
+function App() {
   return (
     <BrowserRouter>
-      <ClerkProviderWithRoutes />
+      <Routes>
+
+              <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signUpForceRedirectUrl={"/auth-callback"} />} />
+              <Route path="/auth-callback" element={<AuthCallbackPage />} />
+              <Route path="/auth" element={
+                <div className='min-h-screen bg-gradient-to-br from-gray-900 via-green-900 to-emerald-900 flex items-center justify-center relative overflow-hidden'>
+                  <FloatingShape color='bg-green-500' size='w-64 h-64' top='-5%' left='10%' delay={0} />
+                  <FloatingShape color='bg-emerald-500' size='w-48 h-48' top='70%' left='80%' delay={5} />
+                  <FloatingShape color='bg-lime-500' size='w-32 h-32' top='40%' left='-10%' delay={2} />
+                  <AuthPage />
+                </div>
+              } />
+              
+              <Route path="/sign-up-email" element={<div className="h-screen bg-black flex items-center justify-center"><SignUpWithEmail /></div>} />
+              <Route path="profile" element={<ProfilePage />} />
+      </Routes>
     </BrowserRouter>
   );
 }
+
+export default App;

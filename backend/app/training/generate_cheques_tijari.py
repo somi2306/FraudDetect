@@ -8,6 +8,42 @@ from datetime import datetime
 import random
 from PIL import Image
 
+villes = [
+    "Rabat", "Casablanca", "Marrakech", "Fès", "Tanger",
+    "Agadir", "Oujda", "Meknès", "Laâyoune", "Kenitra"
+]
+
+
+from num2words import num2words
+
+def montant_en_lettres(montant):
+    """
+    Convertit un montant en lettres au format utilisé dans les chèques marocains.
+    Exemple : 123.45 → 'cent vingt-trois dirhams et quarante-cinq centimes'
+    """
+    # Séparer partie entière et centimes
+    partie_entiere = int(montant)
+    centimes = int(round((montant - partie_entiere) * 100))
+
+    # Convertir partie entière
+    if partie_entiere == 0:
+        lettres_entiere = "zéro dirham"
+    elif partie_entiere == 1:
+        lettres_entiere = "un dirham"
+    else:
+        lettres_entiere = num2words(partie_entiere, lang='fr') + " dirhams"
+
+    # Convertir centimes
+    if centimes == 0:
+        return lettres_entiere + " et zéro centime"
+
+    elif centimes == 1:
+        lettres_centimes = "un centime"
+    else:
+        lettres_centimes = num2words(centimes, lang='fr') + " centimes"
+
+    return lettres_entiere + " et " + lettres_centimes
+
 # === Fonction pour rendre le fond de la signature transparent ===
 def make_signature_transparent(image_path, output_path):
     img = Image.open(image_path).convert("RGBA")
@@ -56,8 +92,8 @@ def generer_ligne_micr(cheque_num, code_banque, code_agent, num_compte, cle_rib)
 
 # ---
 # === Créer dossier de sortie ===
-os.makedirs("cheques", exist_ok=True)
-os.makedirs("cheques/signatures_transparentes", exist_ok=True)
+os.makedirs("../data/chequesTIJARI/", exist_ok=True)
+os.makedirs("../data/cheques/TIJARI/signatures_transparentes", exist_ok=True)
 
 # === Charger les données ===
 clients = pd.read_csv("../data/clients_training_map.csv")
@@ -103,7 +139,7 @@ else:
                 if images:
                     signature_originale = os.path.join(dossier_sign, images[0])
                     signature_transparente_path = os.path.join(
-                        "../data/cheques/signatures_transparentes",
+                        "../data/cheques/TIJARI/signatures_transparentes",
                         f"{client['ID_CLIENT_SYNTH']}_{images[0].split('.')[0]}.png"
                     )
                     make_signature_transparent(signature_originale, signature_transparente_path)
@@ -120,9 +156,9 @@ else:
                 if ben.empty or solde_restant <= 0:
                     continue
                 ben = ben.iloc[0]
-
+                lieu_aleatoire = random.choice(villes)
                 montant = round(random.uniform(1, solde_restant), 2)
-                montant_lettres = num2words(montant, lang='fr')
+                montant_lettres = montant_en_lettres(montant)
                 
                 # === Générer la ligne MICR ===
                 ligne_micr = generer_ligne_micr(
@@ -145,6 +181,7 @@ else:
                     beneficiaire_prenom=ben["prenom"],
                     numero_cheque=ben["Numero_Cheque"],
                     montant=montant,
+                    lieu=lieu_aleatoire,  
                     montant_lettres=montant_lettres,
                     date=datetime.today().strftime("%d/%m/%Y"),
                     signature=signature_path,
@@ -160,7 +197,7 @@ else:
                 # ---
 
                 # === Sauvegarder temporairement le HTML (code inchangé) ===
-                html_file = f"cheques/temp_{client['ID_CLIENT_SYNTH']}_{ben['Numero_Cheque']}.html"
+                html_file = f"../data/cheques/TIJARI/temp_{client['ID_CLIENT_SYNTH']}_{ben['Numero_Cheque']}.html"
                 with open(html_file, "w", encoding="utf-8") as f:
                     f.write(html_content)
                 # ---
@@ -168,7 +205,7 @@ else:
                 # === Charger HTML avec Playwright et prendre screenshot (code inchangé) ===
                 page.goto(f"file:///{os.path.abspath(html_file)}")
                 
-                output_file = f"../data/cheques/cheque_{client['ID_CLIENT_SYNTH']}_{ben['Numero_Cheque']}.png"
+                output_file = f"../data/cheques/TIJARI/cheque_{client['ID_CLIENT_SYNTH']}_{ben['Numero_Cheque']}.png"
                 page.set_viewport_size({"width": 833, "height": 429})
                 page.screenshot(path=output_file, full_page=True)
                 

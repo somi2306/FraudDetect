@@ -51,9 +51,13 @@
 }
 
 /* Date et Lieu */
-.handwriting-font.date-field, .handwriting-font.lieu-field {
-    font-size: 10px; 
+.handwriting-font.date-field {
+    font-size: 16px; 
 }
+.handwriting-font.lieu-field {
+    font-size: 18px; 
+}
+
 
 
 /* Numéro de chèque (si vous voulez qu'il soit manuscrit) */
