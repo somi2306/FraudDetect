@@ -595,7 +595,7 @@ body {
   position: absolute;
   left: 33px;
   top: 86px;
-  width: 762px;
+  width: 800px;
   height: 24px;
 }
 .p-a-y-e-z-c-o-n-t-13e7ebaed236 .root-0 {
@@ -639,9 +639,9 @@ body {
 /* B.P. DH _ _ _ _ _ _ درهم */
 .b-p-d-h-13e73ef0fcbf {
   position: absolute;
-  left: 660px;
+  left: 610px;
   top: 44px;
-  width: 166px;
+  width: 220px;
   height: 20px;
 }
 .b-p-d-h-13e73ef0fcbf .root-0 {
@@ -754,19 +754,19 @@ body {
 /* Montant en lettres et Bénéficiaire */
 .handwriting-font.beneficiary-name,
 .handwriting-font.amount-in-letters {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 25px;
 }
 
 /* Montant en chiffres */
 .montant-chiffres {
-    font-size: 15px; 
+    font-size: 18px; 
     font-weight: 700 !important; 
 }
 
 /* Date et Lieu */
 .date-field, .lieu-field {
-    font-size: 15px; 
+    font-size: 18px; 
 }
 
 /* Numéro de chèque */

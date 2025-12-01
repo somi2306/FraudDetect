@@ -14,7 +14,7 @@ import json
 # CORRECTION DU CHEMIN : votre modèle est dans cheque_detection_cih11, pas cheque_detection_cih
 YOLO_WEIGHTS_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 
-    "..", "..", "runs", "cheque_detection_combined3", "weights", "best.pt"
+    "..", "..", "runs", "cheque_detection_combined6", "weights", "best.pt"
 ))
 
 # Les labels dans l'ordre de votre fichier obj.names (9 classes)
