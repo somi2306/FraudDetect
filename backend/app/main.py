@@ -9,6 +9,7 @@ load_dotenv()
 # Imports de la logique de l'application
 from .core.db import create_db_and_tables
 from .routes import auth, users  # corrected: package is `routes`, not `routers`
+from .routes import agents
 
 # --- Initialisation de l'App ---
 app = FastAPI()
@@ -32,6 +33,8 @@ def on_startup():
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 # Inclut toutes les routes définies dans users.py
 app.include_router(users.router, prefix="/auth", tags=["Users"])
+#le route de l'agent
+app.include_router(agents.router, prefix="/agents", tags=["Agents Authentication"])
 
 
 # --- Route Publique (peut rester ici ou aller dans son propre routeur) ---

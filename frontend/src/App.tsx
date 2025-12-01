@@ -5,7 +5,7 @@ import AuthPage from './pages/auth/AuthPage';
 import AuthCallbackPage from './pages/auth-callback/AuthCallbackPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/clerk-react";
-
+import AgentRoutes from './pages/agent/AgentRoutes';
 
 import SignUpWithEmail from "./components/SignUpWithEmail";
 import FloatingShape from "./components/FloatingShape";
@@ -28,6 +28,11 @@ function App() {
               
               <Route path="/sign-up-email" element={<div className="h-screen bg-black flex items-center justify-center"><SignUpWithEmail /></div>} />
               <Route path="profile" element={<ProfilePage />} />
+        {/* 2. Routes AGENT (Gérées par AgentRoutes, qui contient l'AgentAuthProvider) */}
+        {/* Toutes les URL commençant par /agent iront dans AgentRoutes.tsx */}
+              <Route path="/agent/*" element={<AgentRoutes />} />
+        {/* 3. Redirection par défaut (si l'utilisateur arrive sur '/') */}
+              <Route path="/" element={<Navigate to="/auth" replace />} />
       </Routes>
     </BrowserRouter>
   );

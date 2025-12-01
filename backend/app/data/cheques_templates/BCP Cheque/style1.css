@@ -44,7 +44,7 @@ body {
   top: 267px;
   width: 194px;
   height: 43px;
-  background: #B1B2B5FF;
+  
 }
 
 /* image */
@@ -75,7 +75,7 @@ body {
   top: 18px;
   width: 71px;
   height: 18px;
-  background: #B1B2B5FF;
+  
 }
 
 /* Signature                                               التوقيع */
@@ -177,7 +177,7 @@ body {
   top: 373px;
   width: 648px;
   height: 27px;
-  background: #B1B2B5FF;
+ 
 }
 
 /* la signature ne doit pas atteindre la zone ci-dessous                                            يجب ألا يصل التوقيع إلى الحيز الموجود أسفله */
@@ -288,7 +288,7 @@ body {
   top: 0px;
   width: 215px;
   height: 74px;
-  background: #B1B2B5FF;
+  
 }
 
 /* Rectangle */
@@ -353,7 +353,7 @@ body {
   top: 0px;
   width: 215px;
   height: 48px;
-  background: #B1B2B5FF;
+  
 }
 
 /* A l'ordre de _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  */
@@ -612,4 +612,52 @@ body {
   font-family: "sourcesanspro";
   font-style: normal;
   font-weight: 400;
+}
+/* STYLE POUR L'IMAGE DE SIGNATURE */
+.signature-image {
+  position: absolute;
+  /* Positionné en bas à droite, ajustez au besoin */
+  top: 270px;
+  left: 560px;
+  
+  /* Ajustez la taille de l'image de signature */
+  width: 180px; 
+  height: 60px;
+  object-fit: contain; /* Garde les proportions de l'image */
+  z-index: 10; /* S'assure qu'elle est au-dessus des autres éléments */
+}
+/* Style pour la ligne MICR en bas du chèque */
+.micr-line {
+    position: absolute;
+    /* Ces valeurs dépendent de votre fond de chèque */
+    bottom: 10px; 
+    left: 50px;
+    width: 800px; /* Largeur de la ligne */
+    font-family: 'MICR E-13B', monospace; /* Utilisez une police MICR si installée! */
+    font-size: 18px; 
+    letter-spacing: 1px;
+    color: #000;
+    z-index: 100; /* Assurez-vous qu'il est au-dessus */
+}
+.handwriting-font {
+    font-family: 'Dancing Script', cursive;
+}
+
+
+/* Montant en lettres et Bénéficiaire */
+.handwriting-font.beneficiary-name,
+.handwriting-font.amount-in-letters {
+    font-size: 16px;
+    line-height: 25px;
+}
+
+/* Montant en chiffres */
+.handwriting-font.montant-chiffres {
+    font-size: 16px; 
+    font-weight: 700 !important; 
+}
+
+/* Date et Lieu */
+.handwriting-font.date-field, .handwriting-font.lieu-field {
+    font-size: 16px; 
 }
