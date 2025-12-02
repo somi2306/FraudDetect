@@ -1,4 +1,3 @@
-// AuthCallbackPage.tsx
 import { Card, CardContent } from "@/components/ui/card";
 import { apiClient } from "@/lib/axios";
 import { useUser, useAuth } from "@clerk/clerk-react";
@@ -11,22 +10,25 @@ const AuthCallbackPage = () => {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const syncAttempted = useRef(false);
-  const [userData, setUserData] = useState(() => {
-    // Récupérer les données depuis le localStorage
+  
+  // Récupération des données d'inscription (pour les bénéficiaires qui viennent de s'inscrire)
+  const [userData] = useState(() => {
     const saved = localStorage.getItem('userRegistrationData');
-    // 'role' n'est plus dans les données sauvegardées
     return saved ? JSON.parse(saved) : null;
   });
 
   useEffect(() => {
     const syncUser = async () => {
+      // Éviter la double exécution (Strict Mode React)
       if (!isLoaded || !user || syncAttempted.current) return;
 
       try {
         syncAttempted.current = true;
         const token = await getToken();
 
-        // Si on a des données supplémentaires (nouvel utilisateur)
+        // Préparation des données pour le backend
+        // Si userData existe, c'est une inscription Bénéficiaire
+        // Sinon, c'est une connexion (Admin, Agent, ou Bénéficiaire existant)
         const payload = userData ? {
           firstName: user.firstName,
           lastName: user.lastName,
@@ -34,36 +36,70 @@ const AuthCallbackPage = () => {
           email: user.primaryEmailAddress?.emailAddress,
           cin: userData.cin,
           rib: userData.rib,
-          // 'role' est supprimé du payload
         } : {
-          // Utilisateur existant qui se reconnecte
           firstName: user.firstName,
           lastName: user.lastName,
           imageUrl: user.imageUrl,
           email: user.primaryEmailAddress?.emailAddress,
-          cin: null, // Envoyé comme null pour la logique backend
-          rib: null, // Envoyé comme null pour la logique backend
-          // 'role' est supprimé du payload
+          cin: null,
+          rib: null,
         };
 
-        await apiClient.post(
+        console.log("Synchronisation avec le backend...");
+        
+        // Appel au backend pour créer ou mettre à jour l'utilisateur
+        // Le backend doit renvoyer le role, et pour les agents : must_reset_password et bank_id
+        const response = await apiClient.post(
           "/auth/callback",
           payload,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
 
-        // Nettoyer le localStorage après utilisation
+        const { role, must_reset_password, bank_id } = response.data;
+        console.log("Données reçues:", { role, must_reset_password, bank_id });
+
+        // Nettoyage du localStorage
         if (userData) {
           localStorage.removeItem('userRegistrationData');
         }
+
+        // --- LOGIQUE DE ROUTAGE PRINCIPALE ---
+
+        if (role === "Admin") {
+            // CAS ADMIN : Vérification de la double authentification
+            if (!user.twoFactorEnabled) {
+                console.log("Admin sans 2FA -> Redirection vers Setup");
+                navigate("/admin/setup-2fa");
+            } else {
+                console.log("Admin sécurisé -> Redirection vers Dashboard");
+                navigate("/admin/dashboard");
+            }
+        } 
+        else if (role === "Agent") {
+            // CAS AGENT : Vérification du changement de mot de passe obligatoire
+            if (must_reset_password) {
+                console.log("Premier login Agent -> Redirection vers Reset Password");
+                navigate("/agent/reset-password");
+            } else {
+                console.log(`Agent authentifié -> Redirection vers Dashboard Banque (ID: ${bank_id})`);
+                // On redirige vers le dashboard général ou spécifique à la banque
+                // Si vous avez une route dynamique : navigate(`/agent/dashboard/${bank_id}`);
+                // Sinon :
+                navigate("/agent/dashboard");
+            }
+        } 
+        else {
+            // CAS BÉNÉFICIAIRE (ou autre rôle par défaut)
+            console.log("Utilisateur standard -> Redirection vers Profile");
+            navigate("/profile");
+        }
+
       } catch (error) {
-        console.error("Erreur pendant la synchronisation /auth/callback", error);
-      } finally {
-        navigate("/");
+        console.error("Erreur critique pendant la synchronisation:", error);
+        // En cas d'erreur, on redirige vers une page sûre (profil ou accueil) pour ne pas bloquer
+        navigate("/profile"); 
       }
     };
 
@@ -76,7 +112,7 @@ const AuthCallbackPage = () => {
         <CardContent className="flex flex-col items-center gap-4 pt-6">
           <Loader className="size-6 text-emerald-500 animate-spin" />
           <h3 className="text-zinc-400 text-xl font-bold">Connexion en cours</h3>
-          <p className="text-zinc-400 text-sm">Synchronisation...</p>
+          <p className="text-zinc-400 text-sm">Vérification de vos accès et redirection...</p>
         </CardContent>
       </Card>
     </div>

@@ -1,80 +1,48 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from ..utils.security import verify_password, get_password_hash, create_access_token
 from ..core.db import get_db
 from ..models.user import User, UserRole
-from ..utils.security import verify_password, get_password_hash # Import des fonctions de hachage
-from ..schemas.agent_schemas import AgentLogin, AgentPasswordReset # Import des schémas
+from ..utils.auth import get_current_user # Nécessaire pour identifier l'agent via son token Clerk
 
 router = APIRouter(
-   
-    tags=["Agents Authentication"]
+    tags=["Agents Management"]
 )
 
-@router.post("/login")
-def agent_login(agent_data: AgentLogin, db: Session = Depends(get_db)):
+# NOTE: La route /login n'existe plus ici car l'authentification est gérée par Clerk (Frontend).
+# Le backend reçoit uniquement des requêtes avec un Token valide via 'get_current_user'.
+
+@router.put("/confirm-reset")
+def confirm_password_reset(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
-    Authentifie l'Agent par email et mot de passe. 
-    Vérifie si une réinitialisation de mot de passe est requise.
+    Appelé par le Frontend une fois que l'agent a changé son mot de passe sur Clerk.
+    Cette route passe le flag 'must_reset_password' à False dans la base locale.
     """
-    # 1. Rechercher l'utilisateur Agent par email
-    agent = db.query(User).filter(User.email == agent_data.email).first()
+    clerk_id = current_user.get("user_id")
 
-    if not agent or agent.role != UserRole.AGENT:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Identifiants invalides ou rôle non autorisé.",
-        )
-
-    # 2. Vérifier le mot de passe
-    if not verify_password(agent_data.password, agent.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Identifiants invalides.",
-        )
-
-    # 3. Vérifier l'obligation de réinitialisation
-    if agent.must_reset_password:
-        return {
-            "status": "reset_required",
-            "message": "Veuillez modifier votre mot de passe à la première connexion.",
-            # En production, vous renverriez un jeton temporaire ici
-        }
-
-    # 4. Connexion réussie (si must_reset_password est False)
-    access_token = create_access_token(
-        data={"sub": agent.email, "role": agent.role.value, "user_id": agent.id}
-    )
-    # TODO: Ajouter la logique de génération de jeton JWT ici pour l'authentification
-    return {"status": "success",
-            "message": "Connexion Agent réussie.",
-            "access_token": access_token,
-            "user_id": agent.id}
-
-@router.post("/reset-password")
-def agent_reset_password(reset_data: AgentPasswordReset, db: Session = Depends(get_db)):
-    """
-    Permet à l'Agent de modifier son mot de passe après la première connexion.
-    """
-    agent = db.query(User).filter(User.email == reset_data.email, User.role == UserRole.AGENT).first()
+    # 1. Retrouver l'agent grâce à son ID Clerk (issu du token)
+    agent = db.query(User).filter(User.clerk_id == clerk_id).first()
 
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent non trouvé.")
-    
-    # 1. Vérifier l'ancien mot de passe
-    if not verify_password(reset_data.old_password, agent.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Ancien mot de passe incorrect.",
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Agent non trouvé."
+        )
+
+    # 2. Vérification de sécurité : S'assurer que c'est bien un Agent
+    if agent.role != UserRole.AGENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette action est réservée aux agents."
         )
         
-    # 2. Hacher et mettre à jour le nouveau mot de passe
-    agent.hashed_password = get_password_hash(reset_data.new_password)
-    agent.must_reset_password = False  # Désactiver le drapeau de réinitialisation
+    # 3. Mettre à jour le statut
+    # On considère que si cette route est appelée, c'est que user.updatePassword() a réussi côté Frontend
+    agent.must_reset_password = False
     
-    db.add(agent)
     db.commit()
     db.refresh(agent)
     
-    return {"status": "success", "message": "Mot de passe modifié avec succès."}
+    return {"status": "success", "message": "Réinitialisation confirmée, accès au dashboard débloqué."}

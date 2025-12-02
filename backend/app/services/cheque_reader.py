@@ -14,7 +14,7 @@ import json
 # CORRECTION DU CHEMIN : votre modèle est dans cheque_detection_cih11, pas cheque_detection_cih
 YOLO_WEIGHTS_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 
-    "..", "..", "runs", "cheque_detection_combined6", "weights", "best.pt"
+    "..", "..", "runs", "cheque_detection_combined13", "weights", "best.pt"
 ))
 
 # Les labels dans l'ordre de votre fichier obj.names (9 classes)
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     # Chemin vers l'image de test
     TEST_IMAGE_PATH = os.path.abspath(os.path.join(
         os.path.dirname(__file__), 
-        "..", "..", "..", "backend", "public", "cheque_248_8120776.png"
+        "..", "..", "..", "backend", "public", "cheque_trans_39.png"
     ))
     
     print(f"Tentative de lecture de: {TEST_IMAGE_PATH}")

@@ -27,7 +27,7 @@ def train_detection_model():
     
     results = model.train(
         data=DATA_YAML_PATH, 
-        epochs=100,     # Augmentez à 100 ou plus pour un vrai résultat
+        epochs=50,     # Augmentez à 100 ou plus pour un vrai résultat
         imgsz=640,       
         project=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "runs")),
         name=PROJECT_NAME,

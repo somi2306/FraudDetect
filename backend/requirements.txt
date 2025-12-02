@@ -13,3 +13,8 @@ opencv-python-headless # OpenCV sans interface graphique
 easyocr
 torch
 torchvision
+passlib
+bcrypt
+python-jose
+cryptography
+email-validator
