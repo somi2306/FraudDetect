@@ -41,4 +41,9 @@ _pycache_/
 !/backend/app/data/annotation/.gitkeep
 
 /backend/runs/*
+<<<<<<< HEAD
 !/backend/runs/.gitkeep
+=======
+!/backend/runs/.gitkeep
+!/backend/app/data/cheques/cih/.gitkeep
+>>>>>>> af9e5b927bde6212877cc2a280dc8e6c2bf14f4c
