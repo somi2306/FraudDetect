@@ -4,10 +4,12 @@ from sqlalchemy import String, Integer, Float, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import Optional
+import enum
 
 from ..core.db import Base
 from app.models.user import User
 from app.models.bank import Bank
+
 
 class Cheque(Base):
     __tablename__ = "cheques"
@@ -25,3 +27,5 @@ class Cheque(Base):
 
     # Banque inscrite sur le chèque (choisie par le bénéficiaire)
     banque_cible_id: Mapped[int] = mapped_column(ForeignKey("banks.id"), nullable=False)
+
+    
