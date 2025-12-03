@@ -281,7 +281,7 @@ const ProfileDetails = () => {
             </AvatarFallback>
           </Avatar>
           <div>
-            <Label htmlFor="upload-image" className="cursor-pointer text-emerald-600 hover:underline">
+            <Label htmlFor="upload-image" className="cursor-pointer text-cyan-400  hover:underline">
               {isUploading ? "Téléchargement..." : "Télécharger une image"}
               <Input
                 id="upload-image"

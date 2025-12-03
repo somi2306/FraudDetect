@@ -21,7 +21,7 @@ build/
 npm-debug.log*
 
 # Python
-__pycache__/
+_pycache_/
 *.pyc
 
 #data

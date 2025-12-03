@@ -11,7 +11,7 @@ const AgentProtectedRoute = () => {
   if (!isLoaded || isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-zinc-900">
-        <Loader className="animate-spin text-emerald-500 h-8 w-8" />
+        <Loader className="animate-spin text-cyan-400 h-8 w-8" />
       </div>
     );
   }

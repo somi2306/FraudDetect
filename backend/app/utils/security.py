@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, UTC
 from typing import Optional
 from jose import jwt
 from jose.exceptions import JWTError
+from fastapi import HTTPException, status
+from typing import Dict
 from ..core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Configuration du contexte de hachage (standard FastAPI/Python)
@@ -27,6 +29,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
     return encoded_jwt
+def decode_access_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """

@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 # --- Chargement du .env ---
 load_dotenv()
+from app.models import user, bank, cheque
+
 
 # Imports de la logique de l'application
 from .core.db import create_db_and_tables

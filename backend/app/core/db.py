@@ -13,6 +13,7 @@ DB_HOST = os.environ.get("DB_HOST")
 DB_PORT = os.environ.get("DB_PORT")
 DB_NAME = os.environ.get("DB_NAME")
 
+
 # Si les variables d'environnement ne sont pas toutes définies, on bascule
 # automatiquement sur une base SQLite locale pour le développement.
 if not all([DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
@@ -28,6 +29,7 @@ if not all([DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
         print(f"❌ Erreur de connexion SQLite: {e}")
         engine = None
 else:
+    
     # Encoder le mot de passe s'il contient des caractères spéciaux
     encoded_password = quote_plus(DB_PASSWORD)
     SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USERNAME}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
@@ -63,6 +65,8 @@ def create_db_and_tables():
         print("Création des tables (si elles n'existent pas)...")
         Base.metadata.create_all(bind=engine)
         print("✅ Tables créées avec succès.")
+        print("DEBUG ENV:", DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
+
     except Exception as e:
         print(f"❌ Erreur lors de la création des tables: {e}")
 
