@@ -1,82 +1,147 @@
-import React from "react";
-import { useClerk, useUser } from "@clerk/clerk-react";
+import React, { useEffect, useState } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { 
+  ShieldCheck, 
+  UserPlus, 
+  Users, 
+  LayoutDashboard, 
+  Bell,
+  Search,
+  Menu,
+  Landmark
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { LogOut, ShieldCheck, UserPlus, LayoutDashboard } from "lucide-react";
+import { apiClient } from "@/lib/axios";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Sidebar from "@/components/Sidebar";
+
+const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
+    <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-6 relative overflow-hidden group hover:border-zinc-600 transition-all duration-300">
+        <div className={`absolute top-0 right-0 w-24 h-24 ${colorClass} opacity-5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:opacity-10 transition-opacity`} />
+        <div className="flex justify-between items-start mb-4">
+            <div>
+                <p className="text-zinc-400 text-sm font-medium mb-1">{title}</p>
+                <h3 className="text-3xl font-bold text-white">{value}</h3>
+            </div>
+            <div className={`p-3 rounded-xl ${colorClass} bg-opacity-10 border border-white/5`}>
+                <Icon className={`h-6 w-6 ${colorClass.replace('bg-', 'text-')}`} />
+            </div>
+        </div>
+    </div>
+);
 
 const AdminPage: React.FC = () => {
-  const { signOut } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
+  const [stats, setStats] = useState({
+      totalAgents: 0,
+      activeAgents: 0,
+      totalBanks: 0
+  });
+
+  useEffect(() => {
+      const fetchData = async () => {
+          try {
+              const [agentsRes, banksRes] = await Promise.all([
+                  apiClient.get("/admin/agents"),
+                  apiClient.get("/admin/banks")
+              ]);
+              const agents = agentsRes.data;
+              const banks = banksRes.data;
+
+              setStats({
+                  totalAgents: agents.length,
+                  activeAgents: agents.filter((a: any) => a.is_active).length,
+                  totalBanks: banks.length
+              });
+          } catch (e) {
+              console.error("Erreur chargement données", e);
+          }
+      };
+      fetchData();
+  }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-900 text-white p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 text-white font-sans selection:bg-cyan-500/30">
         
-        {/* Fonds décoratifs flous aux couleurs des banques */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+        {/* SIDEBAR PARTAGÉE */}
+        <Sidebar activePath={location.pathname} />
 
-        <div className="p-8 bg-zinc-800/80 backdrop-blur-md rounded-2xl border border-zinc-700 shadow-2xl flex flex-col items-center gap-8 max-w-md w-full animate-in fade-in zoom-in duration-300 z-10">
-            
-            {/* Header / Info User */}
-            <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-yellow-500 to-orange-500 rounded-full blur opacity-50"></div>
-                <div className="relative h-24 w-24 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-700">
-                    <ShieldCheck className="h-12 w-12 text-white" />
-                </div>
-            </div>
-            
-            <div className="text-center space-y-2">
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-400 to-orange-400">
-                    Super Admin
-                </h1>
-                <p className="text-zinc-400">
-                    Connecté en tant que <span className="text-white font-semibold">{user?.firstName}</span>
-                </p>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-xs font-medium tracking-wider text-zinc-300">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    SYSTÈME SÉCURISÉ
-                </div>
-            </div>
-
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-zinc-600 to-transparent" />
-
-            {/* Actions */}
-            <div className="w-full space-y-4">
-                <Button 
-                    onClick={() => navigate("/admin/create-agent")}
-                    className="w-full h-auto py-4 flex items-center justify-center gap-3 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 transition-all hover:border-cyan-500 group"
-                >
-                    <div className="p-2 rounded-full bg-zinc-800 group-hover:bg-cyan-500/20 transition-colors">
-                        <UserPlus className="h-5 w-5 text-cyan-400 group-hover:text-cyan-300" />
+        <div className="md:ml-64 min-h-screen transition-all duration-300">
+            <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 px-8 py-4 flex items-center justify-between">
+                <div className="md:hidden"><Button variant="ghost" size="icon"><Menu className="h-6 w-6 text-zinc-400" /></Button></div>
+                <div className="flex-1"></div>
+                <div className="flex items-center gap-4 ml-auto">
+                    <div className="flex items-center gap-3 pl-4 border-l border-zinc-800">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-sm font-medium text-white">{user?.fullName}</p>
+                            
+                        </div>
+                        <Avatar className="h-10 w-10 border-2 border-zinc-800">
+                            <AvatarImage src={user?.imageUrl} />
+                            <AvatarFallback className="bg-cyan-600 text-white">AD</AvatarFallback>
+                        </Avatar>
                     </div>
-                    <span className="text-lg font-semibold">Créer un Agent</span>
-                </Button>
+                </div>
+            </header>
 
-                <Button 
-                    onClick={() => navigate("/admin/dashboard")} // Lien vers un dashboard stats si vous en avez un
-                    className="w-full h-auto py-4 flex items-center justify-center gap-3 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 transition-all hover:border-orange-500 group"
-                >
-                    <div className="p-2 rounded-full bg-zinc-800 group-hover:bg-orange-500/20 transition-colors">
-                        <LayoutDashboard className="h-5 w-5 text-orange-400 group-hover:text-orange-300" />
+            <main className="p-8 space-y-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-yellow-500 to-orange-500">
+                            Tableau de bord
+                        </h2>
+                        <p className="text-zinc-400 mt-1">Vue d'ensemble de la plateforme.</p>
                     </div>
-                    <span className="text-lg font-semibold">Vue d'ensemble</span>
-                </Button>
-            </div>
+                </div>
 
-            <Button 
-                onClick={handleSignOut}
-                variant="ghost"
-                className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/10 mt-4"
-            >
-                <LogOut className="h-4 w-4 mr-2" />
-                Se déconnecter
-            </Button>
+                {/* --- STATISTIQUES AUX COULEURS DES BANQUES --- */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* 1. Banques -> Jaune (Attijari) */}
+                    <StatCard 
+                        title="Banques Partenaires" 
+                        value={stats.totalBanks} 
+                        icon={Landmark} 
+                        colorClass="bg-yellow-500" 
+                    />
+                    
+                    {/* 2. Total Agents -> Cyan (CIH) */}
+                    <StatCard 
+                        title="Total Agents" 
+                        value={stats.totalAgents} 
+                        icon={Users} 
+                        colorClass="bg-cyan-500" 
+                    />
+                    
+                    {/* 3. Agents Actifs -> Orange (BCP) */}
+                    <StatCard 
+                        title="Agents Actifs" 
+                        value={stats.activeAgents} 
+                        icon={ShieldCheck} 
+                        colorClass="bg-orange-500" 
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 gap-8">
+                    <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700/50 rounded-2xl p-8 relative overflow-hidden">
+                        <div className="relative z-10">
+                            <h3 className="text-xl font-bold text-white mb-2">Gestion des Équipes</h3>
+                            <p className="text-zinc-400 mb-6 max-w-lg">
+                                Gérez les accès des agents bancaires, réinitialisez les mots de passe et surveillez l'activité.
+                            </p>
+                            <Button onClick={() => navigate("/admin/manage-agents")} variant="outline" className="border-zinc-600 text-zinc-300 hover:text-white hover:bg-zinc-700 hover:border-zinc-500 bg-transparent">
+                                <LayoutDashboard className="mr-2 h-4 w-4" /> Accéder à la gestion
+                            </Button>
+                        </div>
+                        {/* Décoration d'arrière-plan avec les couleurs CIH/BCP */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-500/10 to-orange-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
   );
