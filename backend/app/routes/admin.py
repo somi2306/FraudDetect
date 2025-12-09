@@ -5,9 +5,11 @@ from typing import List, Optional
 import random
 import string
 
+# Imports internes
 from ..core.db import get_db
 from ..models.user import User, UserRole
 from ..models.bank import Bank
+from ..models.cheque import Cheque # Import du modèle Cheque pour les stats
 from ..utils.auth import get_current_user
 from ..services.clerk_service import (
     create_clerk_user, 
@@ -19,7 +21,7 @@ from ..utils.email_service import (
     send_agent_welcome_email, 
     send_account_status_email, 
     send_password_reset_email,
-    send_beneficiary_status_email # <--- Import ajouté
+    send_beneficiary_status_email # Import de l'email spécifique bénéficiaire
 )
 
 router = APIRouter(
@@ -66,18 +68,30 @@ class BeneficiaryResponse(BaseModel):
     cin: Optional[str] = None
     rib: Optional[str] = None
     is_active: bool
+    
+    # Champs calculés pour les statistiques
+    total_cheques: int = 0
+    rejected_cheques: int = 0
+    
     class Config:
         from_attributes = True
 
-# --- ROUTES ---
+# --- ROUTES BANQUES & AGENTS ---
 
 @router.get("/banks", response_model=List[BankResponse])
-def get_banks(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def get_banks(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     return db.query(Bank).all()
 
 @router.get("/agents", response_model=List[AgentResponse])
-def get_all_agents(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def get_all_agents(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     agents = db.query(User).filter(User.role == UserRole.AGENT).all()
+    
     result = []
     for a in agents:
         bank_name = a.bank.name if a.bank else "Aucune"
@@ -103,12 +117,18 @@ async def create_agent(
         raise HTTPException(status_code=400, detail="Cet email professionnel est déjà utilisé.")
 
     try:
+        # Création Clerk
         clerk_user = await create_clerk_user(
-            email=agent_data.email, password=agent_data.password,
-            first_name=agent_data.first_name, last_name=agent_data.last_name
+            email=agent_data.email,
+            password=agent_data.password,
+            first_name=agent_data.first_name,
+            last_name=agent_data.last_name
         )
+        clerk_id = clerk_user["id"]
+
+        # Création DB Locale
         new_agent = User(
-            clerk_id=clerk_user["id"],
+            clerk_id=clerk_id,
             email=agent_data.email,
             personal_email=agent_data.personal_email,
             first_name=agent_data.first_name,
@@ -119,16 +139,22 @@ async def create_agent(
             is_active=True,
             image_url=clerk_user.get("image_url") 
         )
+        
         db.add(new_agent)
         db.commit()
         db.refresh(new_agent)
         
+        # Email de Bienvenue
         background_tasks.add_task(
             send_agent_welcome_email, 
-            to_email=agent_data.personal_email, login_email=agent_data.email,       
-            first_name=agent_data.first_name, temp_password=agent_data.password
+            to_email=agent_data.personal_email, 
+            login_email=agent_data.email,       
+            first_name=agent_data.first_name, 
+            temp_password=agent_data.password
         )
+        
         return {"message": "Agent créé avec succès.", "agent_id": new_agent.id}
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -145,11 +171,12 @@ async def update_agent(
         raise HTTPException(status_code=404, detail="Agent non trouvé")
 
     is_mock = not agent.clerk_id or agent.clerk_id.startswith("user_mock_")
+    
     if not is_mock:
         try:
             await update_clerk_user(agent.clerk_id, data.first_name, data.last_name)
         except Exception as e:
-            print(f"⚠️ Avertissement: Échec mise à jour Clerk ({e}).")
+            print(f"⚠️ Avertissement: Échec mise à jour Clerk ({e}). Continuation locale.")
 
     try:
         agent.first_name = data.first_name
@@ -158,7 +185,7 @@ async def update_agent(
         return {"message": "Informations mises à jour"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erreur DB: {str(e)}")
 
 @router.put("/agents/{agent_id}/status")
 async def toggle_agent_status(
@@ -178,7 +205,7 @@ async def toggle_agent_status(
         try:
             await toggle_clerk_ban(agent.clerk_id, ban=(not new_status))
         except Exception as e:
-            print(f"⚠️ Avertissement: Échec Ban Clerk ({e}).")
+            print(f"⚠️ Avertissement: Échec Ban Clerk ({e}). Continuation locale.")
 
     agent.is_active = new_status
     db.commit()
@@ -187,7 +214,7 @@ async def toggle_agent_status(
     target_email = agent.personal_email if agent.personal_email else agent.email
     if target_email:
         background_tasks.add_task(
-            send_account_status_email, # Utilise le template AGENT
+            send_account_status_email, # Template pour AGENT
             to_email=target_email,
             first_name=agent.first_name,
             is_active=new_status
@@ -208,7 +235,10 @@ async def reset_agent_password_admin(
     
     is_mock = not agent.clerk_id or agent.clerk_id.startswith("user_mock_")
     if is_mock:
-        raise HTTPException(status_code=400, detail="Impossible de reset le mot de passe d'un utilisateur de test.")
+        raise HTTPException(
+            status_code=400, 
+            detail="Impossible de réinitialiser le mot de passe d'un agent de test (Mock)."
+        )
 
     chars = string.ascii_letters + string.digits + "!@#$%"
     temp_password = "".join(random.choice(chars) for _ in range(12))
@@ -219,6 +249,8 @@ async def reset_agent_password_admin(
         db.commit()
         
         target_email = agent.personal_email if agent.personal_email else agent.email
+        
+        # Envoi Synchrone pour confirmation Admin
         email_sent = send_password_reset_email(
             to_email=target_email, 
             login_email=agent.email,
@@ -236,6 +268,7 @@ async def reset_agent_password_admin(
             "email_sent": email_sent,
             "target_email": target_email
         }
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -243,8 +276,38 @@ async def reset_agent_password_admin(
 # --- ROUTES BÉNÉFICIAIRES ---
 
 @router.get("/beneficiaries", response_model=List[BeneficiaryResponse])
-def get_all_beneficiaries(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    return db.query(User).filter(User.role == UserRole.BENEFICIAIRE).all()
+def get_all_beneficiaries(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Liste les bénéficiaires avec leurs statistiques de chèques.
+    """
+    beneficiaries = db.query(User).filter(User.role == UserRole.BENEFICIAIRE).all()
+    
+    result = []
+    for user in beneficiaries:
+        # Calcul des stats sur la table Cheque
+        total_cheques = db.query(Cheque).filter(Cheque.beneficiaire_id == user.id).count()
+        rejected_cheques = db.query(Cheque).filter(
+            Cheque.beneficiaire_id == user.id, 
+            Cheque.status == "rejected"
+        ).count()
+        
+        result.append({
+            "id": user.id,
+            "clerk_id": user.clerk_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "cin": user.cin,
+            "rib": user.rib,
+            "is_active": user.is_active,
+            "total_cheques": total_cheques,
+            "rejected_cheques": rejected_cheques
+        })
+        
+    return result
 
 @router.put("/beneficiaries/{user_id}/status")
 async def toggle_beneficiary_status(
@@ -269,12 +332,11 @@ async def toggle_beneficiary_status(
     user.is_active = new_status
     db.commit()
     
-    # Notification Bénéficiaire (Email principal)
-    # Les bénéficiaires n'ont généralement qu'un email dans 'email'
+    # Notification Bénéficiaire (Email standard)
     target_email = user.email 
     if target_email:
         background_tasks.add_task(
-            send_beneficiary_status_email, # Utilise le NOUVEAU template BÉNÉFICIAIRE
+            send_beneficiary_status_email, # Template pour BÉNÉFICIAIRE
             to_email=target_email,
             first_name=user.first_name,
             is_active=new_status
