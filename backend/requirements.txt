@@ -1,7 +1,8 @@
 faker
-pandas
-num2words
 imgkit
+num2words
+pandas
+pillow
 playwright
 pillow
 opencv-python
@@ -18,3 +19,9 @@ bcrypt
 python-jose
 cryptography
 email-validator
+python-dotenv
+supabase
+clerk-backend-api
+fastapi
+uvicorn
+sqlalchemy

@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 const AuthPage = () => {
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
   const { signUp, isLoaded: isSignUpLoaded } = useSignUp();
-  const { setActive } = useClerk();
+  const { setActive, signOut } = useClerk(); // On garde signOut
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
   const navigate = useNavigate();
 
@@ -328,6 +328,17 @@ const AuthPage = () => {
                 <Button onClick={handleSignUp} disabled={isLoading} className={gradientButtonClass}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "S'inscrire"}
                 </Button>
+
+                {/* Lien discret de déconnexion au cas où une session reste coincée */}
+                <div className="text-center mt-2">
+                    <Button 
+                        variant="link" 
+                        onClick={() => signOut()} 
+                        className="text-zinc-500 hover:text-zinc-300 text-xs"
+                    >
+                        Problème de connexion ? Se déconnecter
+                    </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

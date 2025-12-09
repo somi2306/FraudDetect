@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePath }) => {
                 </div>
                 <div>
                     <h1 className="font-bold text-lg text-white tracking-wide">FraudDetect</h1>
-                    <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Admin Panel</span>
+                    
                 </div>
             </div>
 
