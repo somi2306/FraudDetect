@@ -1,11 +1,13 @@
 import React from 'react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useClerk } from "@clerk/clerk-react";
 import { 
   LayoutDashboard, 
   Users, 
   ShieldCheck, 
-  LogOut
+  LogOut, 
+  UserPlus,
+  UserCheck // Nouvelle icône pour les bénéficiaires
 } from "lucide-react";
 
 interface SidebarProps {
@@ -31,6 +33,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activePath }) => {
             icon: Users, 
             label: "Gérer les Agents", 
             path: "/admin/manage-agents" 
+        },
+        { 
+            icon: UserCheck, 
+            label: "Gérer les Bénéficiaires", 
+            path: "/admin/manage-beneficiaries" 
         },
     ];
 

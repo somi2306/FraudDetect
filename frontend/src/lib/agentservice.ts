@@ -1,29 +1,31 @@
 import { apiClient } from "@/lib/axios"; // <-- On utilise notre client configuré pour Clerk
 
-export interface ChequeData {
+export interface BeneficiaireData {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface ChequeItem {
+  cheque: {
     id: number;
     amount: number;
-    beneficiaireName: string;
     status: string;
     date: string;
-    // ... autres champs
+  };
+  beneficiaire: BeneficiaireData;
 }
 
 export interface AgentDashboardResponse {
-    cheques_meme_banque: ChequeData[];
-    cheques_autre_banque: ChequeData[];
+    cheques_meme_banque: ChequeItem[];
+    cheques_autre_banque: ChequeItem[];
     agentName: string;
     agentEmail: string;
     agentBankId: number;
-    beneficiaireName?: string;
 }
 
-export const getAgentCheques = async (): Promise<AgentDashboardResponse> => {
-  // PLUS BESOIN de récupérer le token manuellement ici.
-  // apiClient (configuré dans AuthProvider.tsx) injecte le token Clerk automatiquement.
 
-  // On appelle la nouvelle route qu'on vient de créer dans agents.py
-  // Note: apiClient a déjà baseURL configuré (/api ou http://localhost:8000)
+export const getAgentCheques = async (): Promise<AgentDashboardResponse> => {
   const response = await apiClient.get("/agents/cheques/me");
 
   return {
@@ -31,7 +33,36 @@ export const getAgentCheques = async (): Promise<AgentDashboardResponse> => {
     cheques_autre_banque: response.data.cheques_autre_banque,
     agentName: response.data.agentName,
     agentBankId: response.data.agentBankId,
-    agentEmail: response.data.agentEmail,
-    beneficiaireName: response.data.beneficiaireName
+    agentEmail: response.data.agentEmail
   };
 };
+
+export const transmettreCheque = async (chequeId: number, agentId: number) => {
+    const response = await apiClient.post(
+        `/agents/cheque/transmettre/${chequeId}`,
+        { agent_id: agentId } // <-- ici dans le body
+    );
+    return response.data;
+};
+
+
+export const getChequesTransmis = async () => {
+  const response = await apiClient.get(`/agents/cheques/transmis`);
+  return response.data;
+};
+
+export async function getAgentInfo() {
+    const res = await apiClient.get("/agents/me");
+    
+    return res.data;
+}
+
+export async function getChequesTraite() {
+    const res = await apiClient.get("/agents/cheques/traites");
+    
+    return res.data;
+}
+
+
+
+

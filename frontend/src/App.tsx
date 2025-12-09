@@ -1,4 +1,4 @@
-import React from "react";
+/*import React from "react";*/
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/clerk-react";
 
@@ -23,7 +23,7 @@ import AdminPage from './pages/admin/AdminPage';
 import CreateAgentPage from './pages/admin/CreateAgentPage';
 import AdminTwoFactorSetup from './pages/admin/AdminTwoFactorSetup';
 import ManageAgentsPage from './pages/admin/ManageAgentsPage';
-
+import ManageBeneficiariesPage from './pages/admin/ManageBeneficiariesPage'; // Import
 // --- AGENT ROUTES ---
 import AgentRoutes from './pages/agent/AgentRoutes';
 
@@ -82,7 +82,7 @@ function App() {
             <Route path="/admin/dashboard" element={<AdminPage />} />
             <Route path="/admin/create-agent" element={<CreateAgentPage />} />
             <Route path="/admin/manage-agents" element={<ManageAgentsPage />} />
-
+            <Route path="/admin/manage-beneficiaries" element={<ManageBeneficiariesPage />} />
             {/* --- 4. ESPACE AGENT --- */}
             <Route path="/agent/*" element={<AgentRoutes />} />
 

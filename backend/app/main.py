@@ -1,5 +1,7 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 # --- Chargement du .env ---
@@ -14,6 +16,14 @@ from app.routes import auth, users, agents, admin, checks, cheques, webhooks
 
 # --- Initialisation de l'App ---
 app = FastAPI()
+
+# --- Servir le dossier public (Images de chèques) ---
+# Nécessaire pour que le frontend puisse afficher les images stockées dans backend/public
+public_path = os.path.join(os.getcwd(), "public")
+if os.path.exists(public_path):
+    app.mount("/public", StaticFiles(directory=public_path), name="public")
+else:
+    print("⚠️ Attention : Le dossier 'public' n'existe pas. Les images ne seront pas servies.")
 
 # --- Ajout du Middleware CORS ---
 app.add_middleware(

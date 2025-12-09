@@ -5,7 +5,6 @@ from typing import List, Optional
 import random
 import string
 
-# Imports internes
 from ..core.db import get_db
 from ..models.user import User, UserRole
 from ..models.bank import Bank
@@ -16,11 +15,11 @@ from ..services.clerk_service import (
     toggle_clerk_ban, 
     set_clerk_password
 )
-# Notez l'ajout de send_password_reset_email
 from ..utils.email_service import (
     send_agent_welcome_email, 
-    send_account_status_email,
-    send_password_reset_email 
+    send_account_status_email, 
+    send_password_reset_email,
+    send_beneficiary_status_email # <--- Import ajouté
 )
 
 router = APIRouter(
@@ -55,27 +54,30 @@ class AgentResponse(BaseModel):
     email: Optional[str] = None
     bank_name: Optional[str] = None
     is_active: bool
-    
+    class Config:
+        from_attributes = True
+
+class BeneficiaryResponse(BaseModel):
+    id: int
+    clerk_id: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    cin: Optional[str] = None
+    rib: Optional[str] = None
+    is_active: bool
     class Config:
         from_attributes = True
 
 # --- ROUTES ---
 
 @router.get("/banks", response_model=List[BankResponse])
-def get_banks(
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    banks = db.query(Bank).all()
-    return banks
+def get_banks(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    return db.query(Bank).all()
 
 @router.get("/agents", response_model=List[AgentResponse])
-def get_all_agents(
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
+def get_all_agents(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     agents = db.query(User).filter(User.role == UserRole.AGENT).all()
-    
     result = []
     for a in agents:
         bank_name = a.bank.name if a.bank else "Aucune"
@@ -101,20 +103,14 @@ async def create_agent(
         raise HTTPException(status_code=400, detail="Cet email professionnel est déjà utilisé.")
 
     try:
-        # Création Clerk
         clerk_user = await create_clerk_user(
-            email=agent_data.email,
-            password=agent_data.password,
-            first_name=agent_data.first_name,
-            last_name=agent_data.last_name
+            email=agent_data.email, password=agent_data.password,
+            first_name=agent_data.first_name, last_name=agent_data.last_name
         )
-        clerk_id = clerk_user["id"]
-
-        # Création DB Locale
         new_agent = User(
-            clerk_id=clerk_id,
+            clerk_id=clerk_user["id"],
             email=agent_data.email,
-            personal_email=agent_data.personal_email, # Sauvegarde de l'email perso
+            personal_email=agent_data.personal_email,
             first_name=agent_data.first_name,
             last_name=agent_data.last_name,
             role=UserRole.AGENT,
@@ -123,22 +119,16 @@ async def create_agent(
             is_active=True,
             image_url=clerk_user.get("image_url") 
         )
-        
         db.add(new_agent)
         db.commit()
         db.refresh(new_agent)
         
-        # Email de Bienvenue (Async)
         background_tasks.add_task(
             send_agent_welcome_email, 
-            to_email=agent_data.personal_email, 
-            login_email=agent_data.email,       
-            first_name=agent_data.first_name, 
-            temp_password=agent_data.password
+            to_email=agent_data.personal_email, login_email=agent_data.email,       
+            first_name=agent_data.first_name, temp_password=agent_data.password
         )
-        
         return {"message": "Agent créé avec succès.", "agent_id": new_agent.id}
-
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -154,16 +144,13 @@ async def update_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent non trouvé")
 
-    # Mise à jour Clerk (Safe - ne plante pas si Mock)
     is_mock = not agent.clerk_id or agent.clerk_id.startswith("user_mock_")
-    
     if not is_mock:
         try:
             await update_clerk_user(agent.clerk_id, data.first_name, data.last_name)
         except Exception as e:
-            print(f"⚠️ Avertissement: Échec mise à jour Clerk ({e}). Continuation locale.")
+            print(f"⚠️ Avertissement: Échec mise à jour Clerk ({e}).")
 
-    # Mise à jour Locale
     try:
         agent.first_name = data.first_name
         agent.last_name = data.last_name
@@ -171,7 +158,7 @@ async def update_agent(
         return {"message": "Informations mises à jour"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur DB: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/agents/{agent_id}/status")
 async def toggle_agent_status(
@@ -186,23 +173,21 @@ async def toggle_agent_status(
 
     new_status = not agent.is_active
     
-    # Clerk Ban/Unban (Safe)
     is_mock = not agent.clerk_id or agent.clerk_id.startswith("user_mock_")
     if not is_mock:
         try:
             await toggle_clerk_ban(agent.clerk_id, ban=(not new_status))
         except Exception as e:
-            print(f"⚠️ Avertissement: Échec Ban Clerk ({e}). Continuation locale.")
+            print(f"⚠️ Avertissement: Échec Ban Clerk ({e}).")
 
-    # DB Update
     agent.is_active = new_status
     db.commit()
     
-    # Notification Email (Async)
+    # Notification Agent (Email Perso > Pro)
     target_email = agent.personal_email if agent.personal_email else agent.email
     if target_email:
         background_tasks.add_task(
-            send_account_status_email,
+            send_account_status_email, # Utilise le template AGENT
             to_email=target_email,
             first_name=agent.first_name,
             is_active=new_status
@@ -214,7 +199,6 @@ async def toggle_agent_status(
 @router.post("/agents/{agent_id}/reset-password")
 async def reset_agent_password_admin(
     agent_id: int,
-    # PLUS DE BACKGROUND TASKS ICI -> On veut attendre la réponse SMTP
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -222,28 +206,19 @@ async def reset_agent_password_admin(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent non trouvé")
     
-    # Protection Mock
     is_mock = not agent.clerk_id or agent.clerk_id.startswith("user_mock_")
     if is_mock:
-        raise HTTPException(
-            status_code=400, 
-            detail="Impossible de réinitialiser le mot de passe d'un agent de test (Mock)."
-        )
+        raise HTTPException(status_code=400, detail="Impossible de reset le mot de passe d'un utilisateur de test.")
 
     chars = string.ascii_letters + string.digits + "!@#$%"
     temp_password = "".join(random.choice(chars) for _ in range(12))
 
     try:
-        # 1. Reset sur Clerk
         await set_clerk_password(agent.clerk_id, temp_password)
-        
-        # 2. Reset en DB
         agent.must_reset_password = True
         db.commit()
         
-        # 3. Envoi Email SYNCHRONE (On attend le résultat True/False)
         target_email = agent.personal_email if agent.personal_email else agent.email
-        
         email_sent = send_password_reset_email(
             to_email=target_email, 
             login_email=agent.email,
@@ -255,14 +230,55 @@ async def reset_agent_password_admin(
         if not email_sent:
             message += " MAIS l'envoi de l'email a échoué."
 
-        # 4. On retourne le statut pour le Toast frontend
         return {
             "message": message, 
             "temp_password": temp_password,
-            "email_sent": email_sent, # <--- C'est ça qui déclenche le visuel
+            "email_sent": email_sent,
             "target_email": target_email
         }
-
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- ROUTES BÉNÉFICIAIRES ---
+
+@router.get("/beneficiaries", response_model=List[BeneficiaryResponse])
+def get_all_beneficiaries(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    return db.query(User).filter(User.role == UserRole.BENEFICIAIRE).all()
+
+@router.put("/beneficiaries/{user_id}/status")
+async def toggle_beneficiary_status(
+    user_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Bénéficiaire non trouvé")
+
+    new_status = not user.is_active
+    
+    is_mock = not user.clerk_id or user.clerk_id.startswith("user_mock_")
+    if not is_mock:
+        try:
+            await toggle_clerk_ban(user.clerk_id, ban=(not new_status))
+        except Exception as e:
+            print(f"⚠️ Avertissement: Échec Ban Clerk ({e}).")
+
+    user.is_active = new_status
+    db.commit()
+    
+    # Notification Bénéficiaire (Email principal)
+    # Les bénéficiaires n'ont généralement qu'un email dans 'email'
+    target_email = user.email 
+    if target_email:
+        background_tasks.add_task(
+            send_beneficiary_status_email, # Utilise le NOUVEAU template BÉNÉFICIAIRE
+            to_email=target_email,
+            first_name=user.first_name,
+            is_active=new_status
+        )
+    
+    status_str = "activé" if new_status else "désactivé"
+    return {"message": f"Compte bénéficiaire {status_str}", "is_active": new_status}

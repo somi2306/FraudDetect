@@ -3,17 +3,15 @@ import { useUser } from "@clerk/clerk-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   ShieldCheck, 
-  UserPlus, 
   Users, 
   LayoutDashboard, 
-  Bell,
-  Search,
   Menu,
-  Landmark
+  Landmark,
+  UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/axios";
-import { Input } from "@/components/ui/input";
+/*import { Input } from "@/components/ui/input";*/
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/Sidebar";
 
@@ -38,17 +36,19 @@ const AdminPage: React.FC = () => {
   const location = useLocation();
 
   const [stats, setStats] = useState({
-      totalAgents: 0,
-      activeAgents: 0,
-      totalBanks: 0
-  });
+    totalAgents: 0,
+    activeAgents: 0,
+    totalBanks: 0,
+    totalBeneficiaries: 0 // Ajout
+});
 
   useEffect(() => {
       const fetchData = async () => {
           try {
-              const [agentsRes, banksRes] = await Promise.all([
+              const [agentsRes, banksRes, benefRes] = await Promise.all([
                   apiClient.get("/admin/agents"),
-                  apiClient.get("/admin/banks")
+                  apiClient.get("/admin/banks"),
+                  apiClient.get("/admin/beneficiaries") // Appel
               ]);
               const agents = agentsRes.data;
               const banks = banksRes.data;
@@ -56,7 +56,8 @@ const AdminPage: React.FC = () => {
               setStats({
                   totalAgents: agents.length,
                   activeAgents: agents.filter((a: any) => a.is_active).length,
-                  totalBanks: banks.length
+                  totalBanks: banks.length,
+                  totalBeneficiaries: benefRes.data.length
               });
           } catch (e) {
               console.error("Erreur chargement données", e);
@@ -124,6 +125,13 @@ const AdminPage: React.FC = () => {
                         icon={ShieldCheck} 
                         colorClass="bg-orange-500" 
                     />
+                    {/* 4. Bénéficiaires Totaux -> Vert (Autre Couleur) */}
+                    <StatCard 
+    title="Bénéficiaires" 
+    value={stats.totalBeneficiaries} 
+    icon={UserCheck} 
+    colorClass="bg-purple-500" // Ou une autre couleur
+/>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8">

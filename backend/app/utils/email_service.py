@@ -40,7 +40,7 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
 
 def send_agent_welcome_email(to_email: str, login_email: str, first_name: str, temp_password: str):
     """
-    Envoie un email de bienvenue (Création de compte).
+    Envoie un email de bienvenue (Création de compte Agent).
     """
     subject = "Bienvenue sur FraudDetect - Vos accès Agent"
     
@@ -72,7 +72,7 @@ def send_agent_welcome_email(to_email: str, login_email: str, first_name: str, t
 
 def send_password_reset_email(to_email: str, login_email: str, first_name: str, temp_password: str):
     """
-    Envoie un email spécifique pour la réinitialisation de mot de passe (Admin).
+    Envoie un email spécifique pour la réinitialisation de mot de passe (Admin -> Agent).
     """
     subject = "Réinitialisation de votre mot de passe - FraudDetect"
     
@@ -95,10 +95,6 @@ def send_password_reset_email(to_email: str, login_email: str, first_name: str, 
           <p><strong>Action requise :</strong> Connectez-vous dès maintenant pour définir votre propre mot de passe.</p>
           
           <a href="http://localhost:5173/auth" style="display: inline-block; background-color: #eab308; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se connecter</a>
-          
-          <p style="font-size: 12px; color: #999; margin-top: 30px;">
-            Si vous n'êtes pas à l'origine de cette demande, veuillez contacter votre administrateur immédiatement.
-          </p>
         </div>
       </body>
     </html>
@@ -107,7 +103,7 @@ def send_password_reset_email(to_email: str, login_email: str, first_name: str, 
 
 def send_account_status_email(to_email: str, first_name: str, is_active: bool):
     """
-    Notifie l'agent d'un changement de statut (Activé/Désactivé).
+    Notifie l'AGENT d'un changement de statut.
     """
     status_text = "ACTIVÉ" if is_active else "DÉSACTIVÉ"
     color = "#10b981" if is_active else "#ef4444" 
@@ -130,6 +126,40 @@ def send_account_status_email(to_email: str, first_name: str, is_active: bool):
           <p>
             { "Vous pouvez à nouveau accéder à la plateforme avec vos identifiants habituels." if is_active else "Votre accès a été temporairement suspendu. Veuillez contacter l'administrateur pour plus d'informations." }
           </p>
+        </div>
+      </body>
+    </html>
+    """
+    return _send_email(to_email, subject, html_content)
+
+# --- NOUVELLE FONCTION ---
+def send_beneficiary_status_email(to_email: str, first_name: str, is_active: bool):
+    """
+    Notifie le BÉNÉFICIAIRE d'un changement de statut.
+    """
+    status_text = "ACTIVÉ" if is_active else "SUSPENDU"
+    color = "#10b981" if is_active else "#ef4444" 
+    subject = f"Statut de votre compte FraudDetect - {status_text}"
+
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+          <h2>Bonjour {first_name},</h2>
+          <p>Le statut de votre compte Client sur <strong>FraudDetect</strong> a été mis à jour.</p>
+          
+          <div style="background-color: #f4f4f5; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #666;">Nouveau statut :</p>
+            <p style="margin: 5px 0; font-weight: bold; font-size: 18px; color: {color};">
+                {status_text}
+            </p>
+          </div>
+
+          <p>
+            { "Vous pouvez à nouveau accéder à votre espace et déposer des chèques." if is_active else "Votre compte a été suspendu pour vérification. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter notre support." }
+          </p>
+          
+          <a href="http://localhost:5173/auth" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accéder à mon compte</a>
         </div>
       </body>
     </html>
