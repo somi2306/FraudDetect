@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AgentProtectedRoute from "@/components/AgentProtectedRoute";
 import AgentResetPassword from "./AgentResetPassword";
 import AgentDashboard from "./AgentDashboard";
+import ChequesTransmisPage from "./ChequesTransmis";
+import ChequesTraites from "./ChequesTraites";
 
 const AgentRoutes = () => {
   return (
@@ -18,7 +20,10 @@ const AgentRoutes = () => {
         
         {/* Le Dashboard Principal */}
         <Route path="dashboard" element={<AgentDashboard />} />
+         
+        <Route path="cheques/transmis" element={<ChequesTransmisPage />} />
 
+        <Route path="cheques/traites" element={<ChequesTraites />} />
         {/* Page de changement de mot de passe (obligatoire au premier login) */}
         <Route path="reset-password" element={<AgentResetPassword />} />
         

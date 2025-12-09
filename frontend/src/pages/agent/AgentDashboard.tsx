@@ -1,7 +1,7 @@
 // src/components/AgentDashboard.tsx
 
 import React, { useEffect, useState } from "react";
-import { getAgentCheques } from "@/lib/agentservice"; // Assurez-vous que ce service existe
+import { getAgentCheques, transmettreCheque } from "@/lib/agentservice"; // Assurez-vous que ce service existe
 import ChequeCard from "../../components/ChequeCard"; 
 import ChequeDetailModal from "../../components/ChequeDetailModal"; 
 import type {Cheque} from "../../components/ChequeDetailModal"; 
@@ -47,7 +47,7 @@ const AgentDashboard = () => {
         console.log(`Traitement INTERNE du chèque ID: ${chequeId} initié.`);
         // [TODO: APPEL API ICI] : Marquer le chèque comme traité/en cours.
         // Mise à jour de l'état local (retirer le chèque de la liste)
-        setChequesMemeBanque(prev => prev.filter(ch => ch.id !== chequeId));
+        setChequesMemeBanque(prev => prev.filter(ch => ch.cheque.id !== chequeId));
     };
     // --- 🏦 Logos par banque ---
     const BANK_LOGOS: { [key: number]: string } = {
@@ -95,12 +95,26 @@ const getThemeClasses = (bankId: number | null) => {
     // --- Application du Thème ---
     const theme = getThemeClasses(agentBankId);
     // Fonction pour gérer la Transmission Interbancaire (Autre banque)
-    const handleTransmitCheque = (chequeId: number) => {
-        console.log(`Transmission du chèque ID: ${chequeId} à la banque cible initiée.`);
-        // [TODO: APPEL API ICI] : Marquer le chèque comme transmis.
-        // Mise à jour de l'état local (retirer le chèque de la liste)
-        setChequesAutreBanque(prev => prev.filter(ch => ch.id !== chequeId));
-    };
+    // --- Remplacer l'ancienne déclaration ---
+const handleTransmitCheque = async (chequeId: number) => {
+    try {
+        if (!agentBankId) {
+            alert("Impossible de déterminer l'agent cible.");
+            return;
+        }
+
+        const data = await transmettreCheque(chequeId, agentBankId); // fonction du service
+        console.log("Transmission réussie :", data);
+
+        // Mise à jour de l'état local
+        setChequesAutreBanque(prev => prev.filter(ch => ch.cheque.id !== chequeId));
+        alert(data.message);
+    } catch (err: any) {
+        console.error("Erreur lors de la transmission :", err.response?.data || err);
+        alert("Erreur lors de la transmission : " + (err.response?.data?.detail || "Erreur inconnue"));
+    }
+};
+
 
     // --- Cycle de Vie et Récupération des Données ---
 
@@ -132,6 +146,7 @@ const getThemeClasses = (bankId: number | null) => {
     const handleChequeClick = (cheque: Cheque) => {
         setSelectedCheque(cheque);
     };
+    
 
     if (loading)
         return (
@@ -152,7 +167,7 @@ const getThemeClasses = (bankId: number | null) => {
             ) : (
                 cheques.map((ch) => (
                     <ChequeCard
-                        key={ch.id}
+                        key={ch.cheque.id}
                         cheque={ch}
                         onViewDetails={handleChequeClick}
                         themeHex={theme.hex}
@@ -245,7 +260,7 @@ const getThemeClasses = (bankId: number | null) => {
                 onClose={() => setSelectedCheque(null)}
                 
                 // Détermine si le chèque est interne à la banque de l'agent.
-                isInternal={chequesMemeBanque.some(ch => ch.id === selectedCheque?.id)}
+                isInternal={chequesMemeBanque.some(ch => ch.cheque.id === selectedCheque?.cheque.id)}
                 
                 // Passage des fonctions d'action
                 onProcess={handleProcessCheque}

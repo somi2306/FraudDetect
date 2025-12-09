@@ -18,14 +18,17 @@ class Cheque(Base):
 
     # Image du chèque (upload du bénéficiaire)
     image_url: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String)
 
     # Date de dépôt (auto)
     date_depot: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Le bénéficiaire qui a déposé le chèque → user.role = BENEFICIAIRE
     beneficiaire_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-
+    beneficiaire = relationship("User", foreign_keys=[beneficiaire_id])
     # Banque inscrite sur le chèque (choisie par le bénéficiaire)
     banque_cible_id: Mapped[int] = mapped_column(ForeignKey("banks.id"), nullable=False)
+
+    agent_actuel_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     

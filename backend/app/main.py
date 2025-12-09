@@ -12,14 +12,21 @@ from app.models import user, bank, cheque
 from .core.db import create_db_and_tables
 # AJOUTEZ L'IMPORT DE 'admin' ICI
 from .routes import auth, users, agents, admin 
+from fastapi.staticfiles import StaticFiles
+import os
+
 
 # --- Initialisation de l'App ---
 app = FastAPI()
 
+
+# Servir le dossier public du backend
+
+app.mount("/public", StaticFiles(directory=os.path.join(os.getcwd(), "public")), name="public")
 # --- Ajout du Middleware CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"], # Ajoutez vos ports frontend
+    allow_origins=["http://localhost:5173", "http://localhost:5174",], # Ajoutez vos ports frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
