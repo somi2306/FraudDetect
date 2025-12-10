@@ -6,9 +6,14 @@ import ChequeCard from "@/components/ChequeCard";
 import ChequeDetailModal from "@/components/ChequeDetailModal";
 import {getTheme} from "@/utils/bankTheme"
 
+interface Agent {
+    bankId: string;
+    [key: string]: any;
+}
+
 const ChequesTransmisPage = () => {
-    const [agent, setAgent] = useState(null);
-    const [cheques, setCheques] = useState([]);
+    const [agent, setAgent] = useState<Agent | null>(null);
+    const [cheques, setCheques] = useState<any[]>([]);
     const [selectedCheque, setSelectedCheque] = useState(null);
 
     useEffect(() => {
@@ -47,7 +52,8 @@ const ChequesTransmisPage = () => {
                 onClose={() => setSelectedCheque(null)}
                 isInternal={true}
                 themeHex={getTheme(agent.bankId).hex}
-                
+                onProcess={() => {}}
+                agentId={Number(agent.bankId)}
             />
         </AgentLayout>
     );

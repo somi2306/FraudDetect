@@ -34,7 +34,7 @@ import Dashboard from './pages/beneficiary/Dashboard';
 import CheckList from './pages/beneficiary/components/CheckList';
 import CheckHistory from './pages/beneficiary/components/CheckHistory';
 import Notifications from './pages/beneficiary/components/Notifications';
-
+import { WebSocketProvider } from "./providers/WebSocketProvider"; // <--- Import
 // --- ROUTE GUARD (POUR BENEFICIAIRE) ---
 // Note : Pour Admin et Agent, la protection est gérée dans leurs composants respectifs (AgentRoutes / AdminPage)
 const BeneficiaryProtectedRoute = () => {
@@ -58,7 +58,7 @@ function App() {
       <AuthProvider>
         {/* BeneficiaryProvider gère le contexte spécifique aux bénéficiaires */}
         <BeneficiaryProvider>
-          
+          <WebSocketProvider>
           <Routes>
             {/* --- 1. AUTHENTICATION --- */}
             <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signUpForceRedirectUrl={"/auth-callback"} />} />
@@ -101,7 +101,7 @@ function App() {
             {/* --- 6. REDIRECTION PAR DÉFAUT --- */}
             <Route path="/" element={<Navigate to="/auth" replace />} />
           </Routes>
-
+            </WebSocketProvider>
           {/* Toast Notification System */}
           <Toaster />
 

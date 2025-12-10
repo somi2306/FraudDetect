@@ -5,10 +5,25 @@ import AgentLayout from "@/layouts/AgentLayout";
 import ChequeCard from "@/components/ChequeCard"; // ton composant modifié
 import { getTheme } from "@/utils/bankTheme";
 
+interface ChequeItem {
+  cheque: {
+    id: number;
+    imageUrl: string;
+    status: string;
+    date: string;
+  };
+  beneficiaire: any;
+}
+
+interface Agent {
+  bankId: string | number;
+  [key: string]: any;
+}
+
 const ChequesTraites = () => {
-  const [agent, setAgent] = useState(null);
-  const [cheques, setCheques] = useState([]);
-  const [selectedCheque, setSelectedCheque] = useState(null);
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [cheques, setCheques] = useState<ChequeItem[]>([]);
+  const [selectedCheque, setSelectedCheque] = useState<ChequeItem | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -43,6 +58,7 @@ const ChequesTraites = () => {
                 <ChequeCard
                     key={item.cheque.id}           // ID réel du chèque
                     cheque={item}
+                    beneficiaire={item.beneficiaire}
                     onViewDetails={() => setSelectedCheque(item)}
                     themeHex={getTheme(agent.bankId).hex} // couleur
                 />

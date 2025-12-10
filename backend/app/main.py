@@ -12,7 +12,7 @@ from app.core.db import create_db_and_tables
 
 # --- IMPORT UNIFIÉ DES ROUTES ---
 # On combine les routes de votre travail (Admin/Agent) et de l'autre branche (Bénéficiaire/Webhooks)
-from app.routes import auth, users, agents, admin, checks, cheques, webhooks
+from app.routes import auth, users, agents, admin, checks, cheques, webhooks, ws
 
 # --- Initialisation de l'App ---
 app = FastAPI()
@@ -63,6 +63,8 @@ app.include_router(cheques.router, prefix="/cheques", tags=["Cheques"])
 # 7. Webhooks (Pour la synchro Clerk automatique)
 app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 
+# 8. WebSocket (Notifications en temps réel)
+app.include_router(ws.router, tags=["Websockets"])
 # --- Route Publique ---
 @app.get("/")
 def read_root():
