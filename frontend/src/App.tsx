@@ -17,6 +17,7 @@ import SignUpWithEmail from "./components/SignUpWithEmail";
 
 // --- PROFILE PAGES ---
 import ProfilePage from './pages/profile/ProfilePage';
+import AdminProfilePage from './pages/admin/AdminProfilePage';
 
 // --- ADMIN PAGES ---
 import AdminPage from './pages/admin/AdminPage';
@@ -83,6 +84,7 @@ function App() {
             <Route path="/admin/create-agent" element={<CreateAgentPage />} />
             <Route path="/admin/manage-agents" element={<ManageAgentsPage />} />
             <Route path="/admin/manage-beneficiaries" element={<ManageBeneficiariesPage />} />
+            <Route path="/admin/profile" element={<AdminProfilePage />} />
             {/* --- 4. ESPACE AGENT --- */}
             <Route path="/agent/*" element={<AgentRoutes />} />
 
