@@ -161,7 +161,7 @@ if __name__ == "__main__":
     # Chemin vers l'image de test
     TEST_IMAGE_PATH = os.path.abspath(os.path.join(
         os.path.dirname(__file__), 
-        "..", "..", "..", "backend", "public", "cheque_trans_39.png"
+        "..", "..", "..", "backend", "public", "cheque_ID401_BEN896_M7601.07.png"
     ))
     
     print(f"Tentative de lecture de: {TEST_IMAGE_PATH}")
