@@ -168,7 +168,7 @@ def detect_and_read_cheque_zones(image_path: str) -> dict:
 # UTILISATION
 # ====================================================================
 if __name__ == "__main__":
-    TEST_IMAGE_PATH = "/Users/mac/Documents/FraudDetect/backend/public/cheque_ID401_BEN896_M7601.07.png"
+    TEST_IMAGE_PATH = "/Users/mac/Documents/FraudDetect/backend/public/cheque_204_7452753.png"
     
     print(f"Tentative de lecture de: {TEST_IMAGE_PATH}")
     
