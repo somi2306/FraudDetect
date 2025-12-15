@@ -1,7 +1,7 @@
 // src/components/AgentDashboard.tsx
 
 import React, { useEffect, useState } from "react";
-import { getAgentCheques, transmettreCheque } from "@/lib/agentservice"; // Assurez-vous que ce service existe
+import { getAgentCheques, transmettreCheque,validateChequeData } from "@/lib/agentservice"; // Assurez-vous que ce service existe
 import ChequeCard from "../../components/ChequeCard"; 
 import ChequeDetailModal from "../../components/ChequeDetailModal"; 
 import type {Cheque} from "../../components/ChequeDetailModal"; 
@@ -43,11 +43,28 @@ const AgentDashboard = () => {
     // --- Fonctions d'Action (Définition des Callbacks) ---
 
     // Fonction pour gérer le Traitement Interne (Même banque)
-    const handleProcessCheque = (chequeId: number) => {
-        console.log(`Traitement INTERNE du chèque ID: ${chequeId} initié.`);
-        // [TODO: APPEL API ICI] : Marquer le chèque comme traité/en cours.
-        // Mise à jour de l'état local (retirer le chèque de la liste)
-        setChequesMemeBanque(prev => prev.filter(ch => ch.cheque.id !== chequeId));
+    const handleProcessCheque = async (chequeId: number, correctedData?: any) => {
+        if (!correctedData) {
+            alert("Aucune donnée d'analyse fournie.");
+            return;
+        }
+
+        try {
+            console.log(`Validation du chèque ID: ${chequeId} avec les données:`, correctedData);
+            
+            // Appel API pour sauvegarder les détails
+            const response = await validateChequeData(chequeId, correctedData);
+            
+            // Mise à jour de l'UI (suppression de la liste "à traiter")
+            setChequesMemeBanque(prev => prev.filter(ch => ch.cheque.id !== chequeId));
+            
+            // Feedback visuel (Optionnel, alert ou toast)
+            // alert(response.message); 
+            
+        } catch (error: any) {
+            console.error("Erreur validation:", error);
+            alert("Erreur lors de la validation du chèque : " + (error.detail || error.message));
+        }
     };
     // --- 🏦 Logos par banque ---
     const BANK_LOGOS: { [key: number]: string } = {

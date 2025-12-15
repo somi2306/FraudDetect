@@ -63,6 +63,14 @@ export async function getChequesTraite() {
     return res.data;
 }
 
+export const validateChequeData = async (chequeId: number, data: any) => {
+  try {
+    const response = await apiClient.post(`/agents/cheque/validate/${chequeId}`, data);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
 
 
 
