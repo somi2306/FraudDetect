@@ -50,20 +50,29 @@ class OCRCorrector:
             'CENTIMES': ['CENTIMES', 'C3NTIMES', 'CFNTIMES', 'CENTINES', 'CENTIIMES'],
         }
         
-        # Noms marocains courants
+        # Noms marocains courants - DICTIONNAIRE ÉTENDU
         self.common_names = {
-            'OUM': ['oum', 'Oum', 'OUM', 'Ourn', 'Ourm'],
-            'ESSAAD': ['essaad', 'Essaad', 'ESSAAD', 'Fsaad', 'Cssaad', 'saaad'],
-            'MEFTAH': ['meftah', 'Meftah', 'MEFTAH', 'Mleftak', 'Meftak', 'Mieftak'],
-            'NABIL': ['Nacig', 'Nabig', 'Nacil', 'Nabif', 'Nabil', 'Nabiï'],
-            'BADAOUI': ['Badacsui', 'Badaoui', 'Badasui', 'Badaowi', 'Badacui', 'Badaouï'],
-            'MOHAMMED': ['Mohanned', 'Mohanmed', 'Mohanrned', 'Moharnmed', 'Mohanamed'],
-            'HASSAN': ['Hassar', 'Hassarn', 'Hassen', 'Hassan', 'Hassane'],
-            'YOUSSEF': ['Yousset', 'Yousscf', 'Yousseff', 'Youssëf', 'Yousscff'],
-            'KARIM': ['Kariim', 'Karirn', 'Kariïm', 'Karnn'],
-            'AHMED': ['Ahrned', 'Ahrnet', 'Ahmet', 'Ahmëd'],
-            'FATIMA': ['Fatiima', 'Fatirna', 'Fatîma', 'Fatiïma'],
-            'AYOUB': ['Ayouo', 'Ayouo', 'Ayouë', 'Ayouï'],
+            'AHMED': ['Ahmed', 'Ahrned', 'Ahrnet', 'Ahmet', 'Ahmëd', 'Ahined'],
+            'MOHAMMED': ['Mohammed', 'Mohanned', 'Mohanmed', 'Mohanrned', 'Moharnmed', 'Mohanamed', 'Mohamrned'],
+            'HASSAN': ['Hassan', 'Hassar', 'Hassarn', 'Hassen', 'Hassane'],
+            'YOUSSEF': ['Youssef', 'Yousset', 'Yousscf', 'Yousseff', 'Youssëf', 'Yousscff'],
+            'KARIM': ['Karim', 'Kariim', 'Karirn', 'Kariïm', 'Karnn'],
+            'FATIMA': ['Fatima', 'Fatiima', 'Fatirna', 'Fatîma', 'Fatiïma', 'Fatiina'],
+            'AYOUB': ['Ayoub', 'Ayouo', 'Ayouë', 'Ayouï', 'Ayouö'],
+            'NABIL': ['Nabil', 'Nacig', 'Nabig', 'Nacil', 'Nabif', 'Nabiï', 'Nabii'],
+            'BADAOUI': ['Badaoui', 'Badacsui', 'Badasui', 'Badaowi', 'Badacui', 'Badaouï'],
+            'MOUDSAID': ['Moudsaid', 'Moudsaïd', 'Moudsaîd', 'Moudssaid'],
+            'OUM': ['Oum', 'oum', 'OUM', 'Ourn', 'Ourm'],
+            'ESSAAD': ['Essaad', 'essaad', 'ESSAAD', 'Fsaad', 'Cssaad', 'saaad'],
+            'MEFTAH': ['Meftah', 'meftah', 'MEFTAH', 'Mleftak', 'Meftak', 'Mieftak'],
+            'RACHID': ['Rachid', 'Rachîd', 'Rachiid', 'Rachiïd', 'Rachïd'],
+            'SAID': ['Said', 'Saïd', 'Saîd', 'Saiid', 'Saïïd'],
+            'KHALID': ['Khalid', 'Khalîd', 'Khaliid', 'Khaliïd'],
+            'OMAR': ['Omar', 'Ommar', 'Ornar', 'Ômar'],
+            'ALI': ['Ali', 'Alï', 'Alî', 'Aii'],
+            'SALAH': ['Salah', 'Saleh', 'Saloh', 'Salàh'],
+            'ANAS': ['Anas', 'Anass', 'Anàs', 'Anâs'],
+            'ZAKARIA': ['Zakaria', 'Zakarïa', 'Zakarîa', 'Zakariya'],
         }
         
         # Villes marocaines
@@ -121,28 +130,40 @@ class OCRCorrector:
         return best_match if best_ratio > threshold else word
     
     def correct_beneficiaire(self, text: str) -> str:
-        """Corrige le nom du bénéficiaire"""
+        """Corrige le nom du bénéficiaire - ALGORITHME AMÉLIORÉ"""
         if not text:
             return text
         
-        # Nettoyer les caractères parasites au début/fin
+        # Nettoyer les caractères parasites mais GARDER les espaces
         text = text.lstrip("'\"`@#*_{").rstrip("_- .,")
         
-        # Supprimer les doubles espaces
-        text = re.sub(r'\s+', ' ', text)
+        # Supprimer caractères spéciaux mais garder lettres et espaces
+        text = re.sub(r'[^a-zA-ZÀ-ÿ\s]', ' ', text)
+        
+        # Normaliser les espaces multiples
+        text = re.sub(r'\s+', ' ', text).strip()
         
         # Séparer les mots
         words = text.split()
         corrected_words = []
         
         for word in words:
-            # Ignorer les mots très courts (probablement du bruit)
+            # Ignorer mots très courts (bruit)
             if len(word) < 2:
                 continue
             
-            # Chercher dans le dictionnaire des noms
-            corrected = self.find_similar_word(word, self.common_names, threshold=0.55)
-            corrected_words.append(corrected.capitalize())
+            # Chercher dans le dictionnaire avec seuil plus bas pour mieux matcher
+            corrected = self.find_similar_word(word, self.common_names, threshold=0.50)
+            
+            # Si pas trouvé dans dictionnaire, garder le mot mais capitaliser
+            if corrected == word:
+                # Capitaliser proprement (première lettre majuscule)
+                corrected = word.capitalize()
+            else:
+                # Mot trouvé dans dictionnaire, capitaliser
+                corrected = corrected.capitalize()
+            
+            corrected_words.append(corrected)
         
         result = ' '.join(corrected_words)
         return result.strip()
@@ -236,32 +257,53 @@ class OCRCorrector:
         return text
     
     def correct_ligne_micr(self, text: str) -> str:
-        """Corrige la ligne MICR - format: XXXXXXX XXXXXX XXXXXXXXXXXXXXXXXXXX"""
+        """
+        Corrige la ligne MICR - FORMAT FIXE STRICT
+        
+        FORMAT OBLIGATOIRE: 7 chiffres + 6 chiffres + 18 chiffres
+        Exemple: 1000001 230807 220000000000000003
+        
+        Structure:
+        - Groupe 1 (7 chiffres): Numéro de chèque
+        - Groupe 2 (6 chiffres): Code agence/banque
+        - Groupe 3 (18 chiffres): Numéro de compte
+        
+        PROBLÈMES COURANTS:
+        - # lus comme 4 au début
+        - Chiffres mal séparés ou collés
+        """
         if not text:
             return text
         
-        # Remplacer tous les séparateurs et caractères parasites par des espaces
-        text = re.sub(r'[^\d\s]', ' ', text)
+        # Nettoyer: garder uniquement chiffres
+        cleaned = re.sub(r'[^\d]', '', text)
         
-        # Normaliser les espaces multiples
-        text = re.sub(r'\s+', ' ', text)
-        text = text.strip()
-        
-        # Extraire tous les nombres
-        numbers = re.findall(r'\d+', text)
-        
-        if not numbers:
+        if not cleaned:
             return text
         
-        # La ligne MICR typique a 3 groupes de chiffres
-        # Format attendu: 1000001 230807 220000000000000003
-        if len(numbers) >= 3:
-            # Prendre les 3 premiers groupes significatifs
-            return f"{numbers[0]} {numbers[1]} {numbers[2]}"
-        elif len(numbers) == 2:
-            return f"{numbers[0]} {numbers[1]}"
-        else:
-            return numbers[0]
+        # CORRECTION DES # AU DÉBUT
+        # Si commence par 4/44, c'est probablement des #
+        if cleaned.startswith('44') and len(cleaned) > 31:
+            cleaned = cleaned[2:]  # Enlever 44
+        elif cleaned.startswith('4') and len(cleaned) > 31:
+            cleaned = cleaned[1:]  # Enlever 1 seul 4
+        
+        # FORMAT ATTENDU: 7 + 6 + 18 = 31 chiffres minimum
+        total_expected = 31
+        
+        if len(cleaned) < total_expected:
+            # Pas assez de chiffres, compléter avec des 0
+            cleaned = cleaned.ljust(total_expected, '0')
+        elif len(cleaned) > total_expected:
+            # Trop de chiffres, prendre les premiers 31
+            cleaned = cleaned[:total_expected]
+        
+        # DÉCOUPER AU FORMAT FIXE: 7-6-18
+        groupe1 = cleaned[0:7]    # 7 chiffres (numéro chèque)
+        groupe2 = cleaned[7:13]   # 6 chiffres (code agence)
+        groupe3 = cleaned[13:31]  # 18 chiffres (compte)
+        
+        return f"{groupe1} {groupe2} {groupe3}"
     
     def correct_date(self, text: str) -> str:
         """Valide et corrige le format de date"""
@@ -316,175 +358,97 @@ class OCRCorrector:
     
     def correct_montant_chiffres(self, text: str) -> str:
         """
-        Corrige le montant en chiffres avec logique anti-# ROBUSTE
+        Corrige le montant en chiffres - ALGORITHME AMÉLIORÉ
         
-        FORMAT CHÈQUE: ##MONTANT.XX##
+        FORMAT RÉEL: ##MONTANT.XX##
+        PROBLÈME: # → lu comme 4 par OCR
         
-        PROBLÈME: Les # sont lus comme 4 par l'OCR
+        EXEMPLES:
+        - OCR: "47900.48" → RÉEL: "7900.48"  (## au début)
+        - OCR: "46034.97" → RÉEL: "6034.97"
+        - OCR: "44530.79" → RÉEL: "530.79"   (## → 44)
         
-        EXEMPLES RÉELS:
-        ┌─────────────┬──────────────┬─────────────┐
-        │ OCR         │ RÉEL         │ CORRECTION  │
-        ├─────────────┼──────────────┼─────────────┤
-        │ 4649.56     │ ##649.56##   │ 649.56      │
-        │ 46034.97    │ ##6034.97##  │ 6034.97     │
-        │ 90112.74    │ ##9011.27##  │ 9011.27     │
-        │ 44530.79    │ ##530.79##   │ 530.79      │
-        │ 1146394251  │ ##1146.39##  │ 1146.39     │
-        └─────────────┴──────────────┴─────────────┘
-        
-        STRATÉGIE OPTIMALE:
-        1. Nettoyer pour avoir uniquement chiffres et point
-        2. Identifier si point présent ou non
-        3. RÈGLE CLÉ: Un montant marocain réaliste = 2 à 6 chiffres AVANT le point
-        4. Si plus de 6 chiffres avant point → enlever chiffres du début jusqu'à avoir 6 max
-        5. Si pas de point et > 8 chiffres total → garder seulement 6-8 chiffres
+        RÈGLES:
+        1. Montant réaliste: 10.00 à 999999.99 MAD
+        2. Format: X.XX (toujours 2 décimales)
+        3. Si commence par 4/44/444 → suspect (probablement des #)
         """
         if not text:
             return text
         
-        # Étape 1: Nettoyer
+        # Nettoyer: garder chiffres et point
         cleaned = re.sub(r'[^\d.,]', '', text)
         cleaned = cleaned.replace(',', '.')
         
         if not cleaned:
             return ""
         
-        # ============================================================
-        # CAS A: POINT PRÉSENT
-        # ============================================================
+        # ========================================
+        # CAS 1: POINT PRÉSENT
+        # ========================================
         if '.' in cleaned:
             parts = cleaned.split('.')
             entier = parts[0]
-            decimales_brutes = ''.join(parts[1:])
+            decimales = ''.join(parts[1:])[:2].ljust(2, '0')
             
-            # Garder 2 décimales (ou compléter avec 0)
-            decimales = decimales_brutes[:2].ljust(2, '0')
+            # DÉTECTION INTELLIGENTE DES #
+            # Les # en début sont lus comme 4 ou 44
             
-            # ===== LOGIQUE ANTI-# ULTRA ROBUSTE =====
-            # 
-            # OBSERVATION: Les ## au début sont souvent lus comme 44, 4, etc.
-            # 
-            # STRATÉGIE EN 3 PASSES:
+            # Si commence par 44 → presque certain que c'est ##
+            if entier.startswith('44') and len(entier) > 4:
+                entier = entier[2:]  # Enlever 44
             
-            # PASSE 1: Enlever les 4 du début si ça dépasse 6 chiffres
-            while entier.startswith('4') and len(entier) > 6:
-                entier = entier[1:]
+            # Si commence par 4 et > 5 chiffres → probable que c'est #
+            elif entier.startswith('4') and len(entier) > 5:
+                entier = entier[1:]  # Enlever 1 seul 4
             
-            # PASSE 2: Si commence ENCORE par 4 ET qu'on a 4-6 chiffres
-            # Vérifier si c'est plausible d'enlever le 4
-            if entier.startswith('4') and 4 <= len(entier) <= 6:
-                # Exemples:
-                # "4530" → enlever ? → "530" (3 chiffres, plausible ✅)
-                # "4999" → enlever ? → "999" (3 chiffres, plausible ✅)
-                # "4012" → enlever ? → "012" (3 chiffres, commence par 0 ❌)
-                
-                entier_sans_4 = entier[1:]
-                
-                # Ne pas enlever si ça commence par 0 (montant invalide)
-                if entier_sans_4 and not entier_sans_4.startswith('0'):
-                    # Montant plus court = plus plausible pour un chèque
-                    entier = entier_sans_4
+            # Si commence par 4, longueur 5, et 2ème chiffre est aussi 4
+            # Ex: "47900" → probablement "7900" (4# au lieu de ##)
+            elif entier.startswith('4') and len(entier) == 5 and entier[1] != '0':
+                # Heuristique: si enlever le 4 donne un montant plus plausible
+                # (entre 1000 et 9999 MAD)
+                entier_test = entier[1:]
+                if 1000 <= int(entier_test) <= 9999:
+                    entier = entier_test
             
-            # PASSE 3: Si commence par 44, 444, etc. (multiples 4)
-            # C'est presque sûr que ce sont des ##
-            if entier.startswith('44'):
-                # Enlever tous les 4 consécutifs du début
-                while entier.startswith('4') and len(entier) > 2:
-                    entier = entier[1:]
+            # Sécurité: max 6 chiffres
+            if len(entier) > 6:
+                entier = entier[-6:]
             
-            # PASSE 4: Sécurité finale - jamais plus de 6 chiffres
-            while len(entier) > 6 and entier:
-                entier = entier[1:]
-            
-            # Validation: si vide ou commence par 0
-            if not entier or entier == '0':
+            # Si vide ou invalide
+            if not entier or int(entier) == 0:
                 entier = '0'
             
             return f"{entier}.{decimales}"
         
-        # ============================================================
-        # CAS B: PAS DE POINT (tous les chiffres collés)
-        # ============================================================
+        # ========================================
+        # CAS 2: PAS DE POINT
+        # ========================================
         
-        # Exemples problématiques:
-        # "1146394251" devrait donner "1146.39"
-        # "90112.74" lu comme "9011274" → mais ici pas de point détecté ? Non, ce cas est géré au-dessus
+        # Les 2 derniers = décimales
+        if len(cleaned) < 3:
+            return cleaned
         
-        # STRATÉGIE RÉVISÉE:
-        # Format: [parasites_début]ENTIER[DECIMALES][parasites_fin]
-        # 
-        # Heuristique: Les # ajoutent généralement 1-2 chiffres au début ET 2-4 à la fin
-        # Montant réel = 4 à 8 chiffres (entier + 2 déc)
+        entier = cleaned[:-2]
+        decimales = cleaned[-2:]
         
-        total_len = len(cleaned)
+        # Même logique anti-4
+        if entier.startswith('44') and len(entier) > 4:
+            entier = entier[2:]
+        elif entier.startswith('4') and len(entier) > 5:
+            entier = entier[1:]
+        elif entier.startswith('4') and len(entier) == 5:
+            entier_test = entier[1:]
+            if 1000 <= int(entier_test) <= 9999:
+                entier = entier_test
         
-        if total_len <= 8:
-            # Cas simple: probablement juste entier+déc avec peut-être 1-2 parasites
-            # Les 2 derniers = décimales
-            if len(cleaned) >= 3:
-                entier = cleaned[:-2]
-                decimales = cleaned[-2:]
-                
-                # Si entier > 6 chiffres, couper du début
-                while len(entier) > 6 and entier:
-                    entier = entier[1:]
-                
-                if not entier:
-                    entier = '0'
-                
-                return f"{entier}.{decimales}"
-        else:
-            # Cas complexe: beaucoup de parasites
-            # Ex: "1146394251" = 10 chiffres
-            #     Format réel: ##1146.39##
-            #     Décodé: 4 4 1 1 4 6 3 9 4 2 5 1
-            #             └┬┘ └──┬──┘ └┬┘ └──┬──┘
-            #              ## entier  déc   ##...
-            
-            # MÉTHODE: Essayer toutes les fenêtres possibles de 6-8 chiffres
-            # et choisir celle qui donne le montant le plus réaliste
-            
-            best_montant = None
-            best_score = -1
-            
-            # Essayer différentes positions
-            for start in range(max(0, total_len - 10), min(4, total_len - 5)):
-                for length in [6, 7, 8]:
-                    if start + length <= total_len:
-                        window = cleaned[start:start + length]
-                        
-                        # Séparer en entier + déc
-                        entier_test = window[:-2]
-                        dec_test = window[-2:]
-                        
-                        # Score: préférer entier entre 2 et 6 chiffres
-                        if 2 <= len(entier_test) <= 6:
-                            score = 10 - abs(len(entier_test) - 4)  # Optimal = 4 chiffres
-                            
-                            if score > best_score:
-                                best_score = score
-                                best_montant = f"{entier_test}.{dec_test}"
-            
-            if best_montant:
-                return best_montant
-            
-            # Fallback: garder les 7 premiers chiffres
-            cleaned = cleaned[:7]
-            if len(cleaned) >= 3:
-                entier = cleaned[:-2]
-                decimales = cleaned[-2:]
-                
-                while len(entier) > 6 and entier:
-                    entier = entier[1:]
-                
-                if not entier:
-                    entier = '0'
-                
-                return f"{entier}.{decimales}"
+        if len(entier) > 6:
+            entier = entier[-6:]
         
-        # Trop court
-        return cleaned
+        if not entier or int(entier) == 0:
+            entier = '0'
+        
+        return f"{entier}.{decimales}"
     
     def correct_field(self, field_name: str, text: str, image: np.ndarray = None) -> str:
         """Applique la correction appropriée selon le champ"""
@@ -509,37 +473,90 @@ class OCRCorrector:
         return text
     
     def validate_extraction(self, data: Dict) -> Dict:
-        """Valide et signale les champs suspects"""
+        """Valide et signale les champs suspects - AMÉLIORÉ"""
         validation_results = {}
         
         # Validation de la date
         if 'Date' in data and data['Date'].get('text_corrected'):
             date_text = data['Date']['text_corrected']
             if not re.match(r'\d{2}/\d{2}/\d{4}', date_text):
-                validation_results['Date'] = 'Format invalide (attendu: JJ/MM/AAAA)'
+                validation_results['Date'] = '⚠️ Format invalide (attendu: JJ/MM/AAAA)'
         
         # Validation de la ligne MICR
         if 'Ligne_MICR' in data and data['Ligne_MICR'].get('text_corrected'):
             micr = data['Ligne_MICR']['text_corrected']
+            
+            # Vérifier pas de lettres
             if re.search(r'[a-zA-Z]', micr):
-                validation_results['Ligne_MICR'] = 'Contient des lettres (devrait être uniquement numérique)'
+                validation_results['Ligne_MICR'] = '⚠️ Contient des lettres (devrait être numérique)'
+            
             # Vérifier le format (3 groupes séparés par espaces)
             groups = micr.split()
             if len(groups) != 3:
-                validation_results['Ligne_MICR'] = f'Format suspect (trouvé {len(groups)} groupes, attendu 3)'
+                validation_results['Ligne_MICR'] = f'⚠️ Format suspect (trouvé {len(groups)} groupes, attendu 3)'
+            
+            # Vérifier les longueurs EXACTES: 7-6-18
+            elif len(groups) == 3:
+                if len(groups[0]) != 7 or len(groups[1]) != 6 or len(groups[2]) != 18:
+                    validation_results['Ligne_MICR'] = f'⚠️ Longueurs incorrectes (trouvé: {len(groups[0])}-{len(groups[1])}-{len(groups[2])}, attendu: 7-6-18)'
         
         # Validation du montant en chiffres
         if 'Montant_Chiffres' in data and data['Montant_Chiffres'].get('text_corrected'):
             montant = data['Montant_Chiffres']['text_corrected']
             if not re.match(r'^\d+\.\d{2}$', montant):
-                validation_results['Montant_Chiffres'] = 'Format invalide (attendu: XXXX.XX)'
+                validation_results['Montant_Chiffres'] = '⚠️ Format invalide (attendu: XXXX.XX)'
+            else:
+                # Vérifier plage réaliste
+                montant_val = float(montant)
+                if montant_val < 10 or montant_val > 1000000:
+                    validation_results['Montant_Chiffres'] = f'⚠️ Montant suspect ({montant} MAD)'
         
         # Validation du montant en lettres
         if 'Montant_Lettres' in data and data['Montant_Lettres'].get('text_corrected'):
             montant_lettres = data['Montant_Lettres']['text_corrected']
             
-            # Vérifier présence de DIRHAMS ou CENTIMES
-            if 'DIRHAM' not in montant_lettres and 'CENTIME' not in montant_lettres:
-                validation_results['Montant_Lettres'] = 'Monnaie non détectée (DIRHAMS/CENTIMES)'
+            # Vérifier présence de DIRHAMS
+            if 'DIRHAM' not in montant_lettres:
+                validation_results['Montant_Lettres'] = '⚠️ Monnaie non détectée (DIRHAMS manquant)'
+            
+            # Vérifier cohérence avec montant chiffres
+            if 'Montant_Chiffres' in data and data['Montant_Chiffres'].get('text_corrected'):
+                montant_chiffres = float(data['Montant_Chiffres']['text_corrected'])
+                
+                # Conversion simple lettres → chiffres (approximatif)
+                montant_estime = self._estimate_amount_from_text(montant_lettres)
+                
+                if montant_estime and abs(montant_chiffres - montant_estime) / montant_chiffres > 0.1:
+                    validation_results['Coherence'] = f'⚠️ INCOHÉRENCE: Chiffres={montant_chiffres} MAD vs Lettres≈{montant_estime} MAD'
         
         return validation_results
+    
+    def _estimate_amount_from_text(self, text: str) -> Optional[float]:
+        """Estime le montant à partir du texte en lettres (approximatif)"""
+        text = text.upper()
+        
+        # Dictionnaire de conversion
+        nombres = {
+            'UN': 1, 'DEUX': 2, 'TROIS': 3, 'QUATRE': 4, 'CINQ': 5,
+            'SIX': 6, 'SEPT': 7, 'HUIT': 8, 'NEUF': 9, 'DIX': 10,
+            'VINGT': 20, 'TRENTE': 30, 'QUARANTE': 40, 'CINQUANTE': 50,
+            'SOIXANTE': 60, 'CENT': 100, 'MILLE': 1000
+        }
+        
+        total = 0
+        current = 0
+        
+        for word in text.split():
+            if word in nombres:
+                val = nombres[word]
+                if val >= 100:
+                    current = current * val if current else val
+                else:
+                    current += val
+            elif word == 'MILLE':
+                total += current * 1000 if current else 1000
+                current = 0
+        
+        total += current
+        
+        return float(total) if total > 0 else None
