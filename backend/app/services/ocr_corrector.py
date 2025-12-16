@@ -364,7 +364,7 @@ class OCRCorrector:
         PROBLÈME: # → lu comme 4 par OCR
         
         EXEMPLES:
-        - OCR: "47900.48" → RÉEL: "7900.48"  (## au début)
+        - OCR: "47900.43" → RÉEL: "7900.43"  (## au début)
         - OCR: "46034.97" → RÉEL: "6034.97"
         - OCR: "44530.79" → RÉEL: "530.79"   (## → 44)
         
