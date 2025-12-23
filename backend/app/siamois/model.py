@@ -1,67 +1,174 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Flatten, Dense, Lambda
+from tensorflow.keras.layers import (
+    Input,
+    Conv2D,
+    MaxPooling2D,
+    Flatten,
+    Dense,
+    Lambda,
+    Concatenate
+)
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 import tensorflow.keras.backend as K
 
-# --- Hyperparamètres (À ajuster si besoin) ---
+# ============================================================
+# 1) PARAMÈTRES GÉNÉRAUX DU MODÈLE
+# ============================================================
+# Dimensions fixes des images de signatures
 IMG_HEIGHT = 100
 IMG_WIDTH = 200
-CHANNELS = 1  # 1 pour Niveaux de Gris
-EMBEDDING_DIM = 512 
 
+# Nombre de canaux :
+# 1 => image en niveaux de gris (noir et blanc)
+CHANNELS = 1
+
+# Taille du vecteur numérique final représentant une signature
+# Plus cette valeur est grande, plus la représentation est riche
+EMBEDDING_DIM = 512
+
+
+# ============================================================
+# 2) NORMALISATION DES EMBEDDINGS
+# ============================================================
+def normalize_embedding(z):
+    """
+    Normalise un vecteur (embedding) pour que sa norme soit égale à 1.
+
+    Pourquoi ?
+    - On compare les signatures par distance
+    - La normalisation évite que la "taille" du vecteur
+      influence la comparaison
+    - Seule la direction (le contenu) du vecteur compte
+    """
+    return K.l2_normalize(z, axis=1)
+
+
+# ============================================================
+# 3) RÉSEAU DE BASE (CNN) : IMAGE → EMBEDDING
+# ============================================================
 def create_base_cnn(input_shape):
     """
-    Crée le modèle CNN de base (l'extracteur de caractéristiques).
+    Ce réseau prend UNE image de signature en entrée
+    et la transforme en un vecteur numérique (embedding).
+
+    Ce vecteur résume les caractéristiques importantes
+    de la signature (structure, courbes, style d’écriture, etc.).
     """
+
+    # Entrée du réseau : une image (100 x 200 x 1)
     input_layer = Input(shape=input_shape, name='input_image')
 
-    # Couche 1: 64 filtres
-    x = Conv2D(64, (5, 5), activation='relu', kernel_regularizer=l2(2e-4))(input_layer)
+    # --------------------------------------------------------
+    # Bloc 1 : extraction de motifs simples
+    # (traits, bords, lignes)
+    # --------------------------------------------------------
+    x = Conv2D(
+        64,                # nombre de filtres
+        (5, 5),            # taille du filtre
+        activation='relu', # fonction non linéaire
+        kernel_regularizer=l2(2e-4)  # limite le sur-apprentissage
+    )(input_layer)
+
+    # Réduction de la taille spatiale (moins de calculs)
     x = MaxPooling2D(pool_size=(2, 2))(x)
 
-    # Couche 2: 128 filtres
-    x = Conv2D(128, (3, 3), activation='relu', kernel_regularizer=l2(2e-4))(x)
+    # --------------------------------------------------------
+    # Bloc 2 : motifs plus complexes
+    # (formes, intersections, courbures)
+    # --------------------------------------------------------
+    x = Conv2D(
+        128,
+        (3, 3),
+        activation='relu',
+        kernel_regularizer=l2(2e-4)
+    )(x)
+
     x = MaxPooling2D(pool_size=(2, 2))(x)
-    
-    # Couche 3: 256 filtres
-    x = Conv2D(256, (3, 3), activation='relu', kernel_regularizer=l2(2e-4))(x)
+
+    # --------------------------------------------------------
+    # Bloc 3 : motifs abstraits et globaux
+    # --------------------------------------------------------
+    x = Conv2D(
+        256,
+        (3, 3),
+        activation='relu',
+        kernel_regularizer=l2(2e-4)
+    )(x)
+
     x = MaxPooling2D(pool_size=(2, 2))(x)
-    
-    # Flattening et couche Dense pour l'Embedding
+
+    # --------------------------------------------------------
+    # Passage de la représentation 2D vers un vecteur 1D
+    # --------------------------------------------------------
     x = Flatten()(x)
-    x = Dense(EMBEDDING_DIM, activation='relu', kernel_regularizer=l2(1e-3))(x)
-    
-    # Normalisation L2: Cruciale pour la Triplet Loss
-    x = Lambda(lambda z: K.l2_normalize(z, axis=1), name='embedding_output')(x)
 
-    return Model(inputs=input_layer, outputs=x, name="Base_CNN")
+    # --------------------------------------------------------
+    # Couche dense finale :
+    # transforme les informations extraites en un vecteur de 512 valeurs
+    # --------------------------------------------------------
+    x = Dense(
+        EMBEDDING_DIM,
+        activation='relu',
+        kernel_regularizer=l2(1e-3)
+    )(x)
 
+    # --------------------------------------------------------
+    # Normalisation du vecteur (embedding)
+    # --------------------------------------------------------
+    x = Lambda(normalize_embedding, name='embedding_output')(x)
+
+    # Modèle final : Image → Embedding
+    return Model(
+        inputs=input_layer,
+        outputs=x,
+        name="Base_CNN"
+    )
+
+
+# ============================================================
+# 4) MODÈLE SIAMOIS AVEC TRIPLETS
+# ============================================================
 def create_siamese_model(base_cnn):
     """
-    Crée le modèle siamois avec les trois branches.
+    Ce modèle reçoit TROIS images de signatures :
+    - Anchor   : signature authentique
+    - Positive : autre signature authentique (même personne)
+    - Negative : signature falsifiée
+
+    Il utilise le même réseau (base_cnn) pour les trois images
+    afin de produire trois embeddings comparables.
     """
+
     input_shape = (IMG_HEIGHT, IMG_WIDTH, CHANNELS)
-    
-    # Définir les trois entrées
+
+    # Entrées du modèle
     input_A = Input(shape=input_shape, name='anchor_input')
     input_P = Input(shape=input_shape, name='positive_input')
     input_N = Input(shape=input_shape, name='negative_input')
 
-    # Partager le CNN sur chaque entrée
+    # --------------------------------------------------------
+    # Passage des trois images dans le MÊME réseau de base
+    # (poids partagés)
+    # --------------------------------------------------------
     embedding_A = base_cnn(input_A)
     embedding_P = base_cnn(input_P)
     embedding_N = base_cnn(input_N)
 
-    # Le modèle complet prend les trois entrées et sort les trois embeddings
-    siamese_net = Model(inputs=[input_A, input_P, input_N], 
-                        outputs=[embedding_A, embedding_P, embedding_N],
-                        name="Siamese_Triplet_Net")
-    
-    return siamese_net
+    # --------------------------------------------------------
+    # Fusion des trois embeddings en un seul vecteur
+    # [A | P | N]
+    #
+    # Ce vecteur sera utilisé par la Triplet Loss
+    # pour calculer les distances
+    # --------------------------------------------------------
+    merged_output = Concatenate(axis=-1)(
+        [embedding_A, embedding_P, embedding_N]
+    )
 
-if __name__ == '__main__':
-    # Test rapide de l'architecture
-    base_cnn = create_base_cnn(input_shape=(IMG_HEIGHT, IMG_WIDTH, CHANNELS))
-    siamese_model = create_siamese_model(base_cnn)
-    siamese_model.summary()
+    # Modèle final Siamois
+    return Model(
+        inputs=[input_A, input_P, input_N],
+        outputs=merged_output,
+        name="Siamese_Triplet_Net"
+    )
