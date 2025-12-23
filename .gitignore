@@ -5,6 +5,7 @@ backend/.env
 frontend/.env
 .npmrc
 .DS_Store
+backend/app/siamois/*.h5
 
 # Dossiers d'IDE et de configuration locaux
 .idea/
