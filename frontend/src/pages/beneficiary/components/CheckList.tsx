@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { useBeneficiary } from '../BeneficiaryContext';
+import { getBankThemeById } from '@/config/bankThemes';
 
 const getStatusBadge = (statut: string) => {
   const configs: Record<string, { color: string; icon: typeof Clock; label: string }> = {
@@ -54,22 +55,45 @@ const CheckList = () => {
           <p className="text-gray-500 text-center py-8">Aucun chèque trouvé</p>
         ) : (
           <div className="space-y-4">
-            {checks.map((check) => (
-              <div 
-                key={check.id} 
-                className="p-4 border rounded-lg flex justify-between items-center hover:shadow-md transition-shadow"
-                style={{ borderLeftWidth: '4px', borderLeftColor: theme.hex }}
-              >
-                <div>
-                  <p className="font-semibold">{check.numero}</p>
-                  <p className="text-sm text-gray-500">{check.banque}</p>
+            {checks.map((check) => {
+              const bankTheme = getBankThemeById(check.banqueId);
+              return (
+                <div 
+                  key={check.id} 
+                  className="p-4 border rounded-lg flex justify-between items-center hover:shadow-md transition-shadow"
+                  style={{ borderLeftWidth: '4px', borderLeftColor: bankTheme.hex }}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Logo de la banque */}
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2" style={{ borderColor: bankTheme.hex }}>
+                      <img 
+                        src={bankTheme.logo} 
+                        alt={bankTheme.name}
+                        className="w-10 h-10 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/logos/default.png';
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        {check.numero ? check.numero : 'En attente de traitement'}
+                      </p>
+                      <p className="text-sm text-gray-500">{check.banque}</p>
+                      <p className="text-xs text-gray-400">{check.dateDepot}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {check.montant == null ? (
+                      <p className="text-sm text-gray-500">En attente de traitement</p>
+                    ) : (
+                      <p className="font-semibold text-lg">{check.montant.toLocaleString()} MAD</p>
+                    )}
+                    {getStatusBadge(check.statut)}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">{check.montant.toLocaleString()} MAD</p>
-                  {getStatusBadge(check.statut)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

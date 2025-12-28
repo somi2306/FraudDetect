@@ -7,9 +7,11 @@ import { useAuthStore } from '@/stores/useAuthStore';
 
 export interface Cheque {
   id: number;
-  numero: string;
-  montant: number;
+  numero: string | null;
+  montant: number | null;
+  detailsDisponibles: boolean;
   banque: string;
+  banqueId?: number;
   dateDepot: string;
   statut: string;
   imageUrl?: string;
@@ -103,9 +105,11 @@ export const BeneficiaryProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const mappedChecks: Cheque[] = chequesData.map((c: any) => ({
         id: c.id,
-        numero: c.numero_cheque || `CHQ${c.id.toString().padStart(6, '0')}`,
-        montant: c.montant_cheque || 0,
+        numero: c.numero_cheque ?? null,
+        montant: c.montant_cheque ?? null,
+        detailsDisponibles: (c.numero_cheque != null && String(c.numero_cheque).trim() !== '') || (c.montant_cheque != null),
         banque: c.banque_nom || 'Banque inconnue',
+        banqueId: c.banque_id,
         dateDepot: c.date_depot ? new Date(c.date_depot).toISOString().split('T')[0] : '',
         statut: mapStatus(c.status),
         imageUrl: c.image_url,
@@ -134,8 +138,9 @@ export const BeneficiaryProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const addCheck = (check: Partial<Cheque>) => {
     const newCheck: Cheque = {
       id: Date.now(),
-      numero: check.numero || `CHQ${Date.now()}`,
-      montant: check.montant || 0,
+      numero: check.numero ?? null,
+      montant: check.montant ?? null,
+      detailsDisponibles: check.detailsDisponibles ?? false,
       banque: check.banque || '',
       dateDepot: check.dateDepot || new Date().toISOString().split('T')[0],
       statut: check.statut || 'en_cours',

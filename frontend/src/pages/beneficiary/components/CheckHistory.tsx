@@ -66,9 +66,13 @@ const CheckHistory = () => {
         <TableBody>
           {checks.map((check) => (
             <TableRow key={check.id} className="hover:bg-gray-50">
-              <TableCell className="font-medium">{check.numero}</TableCell>
+              <TableCell className="font-medium">
+                {check.numero ? check.numero : 'En attente de traitement'}
+              </TableCell>
               <TableCell>{check.banque}</TableCell>
-              <TableCell>{check.montant.toLocaleString()} MAD</TableCell>
+              <TableCell>
+                {check.montant == null ? 'En attente de traitement' : `${check.montant.toLocaleString()} MAD`}
+              </TableCell>
               <TableCell>{check.dateDepot}</TableCell>
               <TableCell>{getStatusBadge(check.statut)}</TableCell>
             </TableRow>
