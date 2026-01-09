@@ -62,8 +62,7 @@ def generer_ligne_micr(cheque_num, code_banque, code_agent, num_compte, cle_rib)
 # --- Fonction helper pour convertir l'image et enlever le fond (inchangée) ---
 def image_to_base64_uri(image_path):
     """
-    Ouvre une image, LA RECADRE pour enlever les bords indésirables,
-    rend son fond (pixels blancs/presque blancs) transparent,
+    Ouvre une image, rend son fond (pixels blancs/presque blancs) transparent,
     et la convertit en data URI base64 au format PNG.
     """
     if not os.path.exists(image_path):
@@ -74,24 +73,8 @@ def image_to_base64_uri(image_path):
         # Ouvre l'image avec PIL
         img = Image.open(image_path)
         
-        # --- PARTIE : RECADRAGE ---
-        CROP_TOP = 20    # Coupe 20px en haut
-        CROP_BOTTOM = 10  # Coupe 10px en bas
-        CROP_LEFT = 10  # Coupe 10px à gauche
-        CROP_RIGHT = 30 # Coupe 30px à droite
-        
-        width, height = img.size
-        
-        left = CROP_LEFT
-        upper = CROP_TOP
-        right = width - CROP_RIGHT
-        lower = height - CROP_BOTTOM
-
-        if left >= right or upper >= lower:
-             print(f"!!! Attention : Recadrage invalide pour {image_path}. L'image est peut-être trop petite.")
-        else:
-            img = img.crop((left, upper, right, lower))
-        # --- FIN DU RECADRAGE ---
+        # --- SUPPRIMÉ LE RECADRAGE ---
+        # On garde l'image telle quelle
         
         img = img.convert("RGBA")
         datas = img.getdata()
@@ -101,7 +84,7 @@ def image_to_base64_uri(image_path):
         
         for item in datas:
             if item[0] > WHITE_THRESHOLD and item[1] > WHITE_THRESHOLD and item[2] > WHITE_THRESHOLD:
-                newData.append((255, 255, 255, 0))
+                newData.append((255, 255, 255, 0))  # fond transparent
             else:
                 newData.append(item)
         
@@ -118,6 +101,7 @@ def image_to_base64_uri(image_path):
     except Exception as e:
         print(f"!!! Erreur lors du traitement de l'image {image_path}: {e}")
         return ""
+
 
 
 # --- 1. CONFIGURATION ---

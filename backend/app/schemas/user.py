@@ -15,4 +15,4 @@ class UserSync(pydantic.BaseModel):
     email: Optional[str] = None
     cin: Optional[str] = None
     rib: Optional[str] = None
-    #role: UserRole
+    bank_code: Optional[str] = None  # Code de banque (230, 007, 145)

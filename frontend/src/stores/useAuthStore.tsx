@@ -2,31 +2,39 @@ import { create } from "zustand";
 import { apiClient } from "@/lib/axios";
 
 interface AuthStore {
-    isAdmin: boolean;
+    role: string | null;  // Remplace 'isAdmin' par un rôle plus générique
+    bankId: number | null; // Utile pour l'agent
     isLoading: boolean;
     error: string | null;
-    checkAdminStatus: (clerkId: string) => Promise<void>; 
+    syncUserRole: () => Promise<void>; // Fonction pour récupérer le rôle
     reset: () => void;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
-    isAdmin: false,
+    role: null,
+    bankId: null,
     isLoading: true,
     error: null,
 
-    checkAdminStatus: async (clerkId: string) => { 
+    syncUserRole: async () => { 
         set({ isLoading: true, error: null });
         try {
-            const response = await apiClient.post("/admin/check", { clerkId });
-            set({ isAdmin: response.data.admin });
+            // On appelle la route /users/me qu'on vient de modifier
+            const response = await apiClient.get("/users/me");
+            set({ 
+                role: response.data.role,
+                bankId: response.data.bank_id
+            });
+            console.log("Rôle synchronisé :", response.data.role);
         } catch (error: any) {
-            set({ isAdmin: false, error: error.response?.data?.message || "Une erreur est survenue" });
+            console.error("Erreur sync rôle", error);
+            set({ role: null, bankId: null, error: "Impossible de récupérer le profil" });
         } finally {
             set({ isLoading: false });
         }
     },
 
     reset: () => {
-        set({ isAdmin: false, isLoading: false, error: null });
+        set({ role: null, bankId: null, isLoading: false, error: null });
     },
 }));

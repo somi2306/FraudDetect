@@ -32,7 +32,7 @@ body {
   position: relative;
   width: 833px;
   height: 413px;
-  background: #e2d8cdFF;
+  background: rgb(213, 144, 71);
   overflow: hidden;
   z-index: 0;
 }

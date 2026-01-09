@@ -69,7 +69,7 @@ for _, client in df_clients.iterrows():
         # 4. Simuler la FRAUDE DE MONTANT (Niveau 1)
         # 10% de chance que les lettres et les chiffres ne correspondent pas
         is_fraude_montant = False
-        montant_lettres = num2words(montant_actuel, lang='fr') + " dirhams"
+        montant_lettres = num2words(montant_actuel, lang='fr').replace(" virgule ", " et ") + " dirhams"
         
         if random.uniform(0, 1) < 0.10:
             is_fraude_montant = True

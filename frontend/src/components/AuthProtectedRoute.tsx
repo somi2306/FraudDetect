@@ -10,7 +10,7 @@ const AuthProtectedRoute: React.FC = () => {
   if (!isLoaded) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-100">
-        <Loader className="animate-spin h-10 w-10 text-emerald-600" />
+        <Loader className="animate-spin h-10 w-10 text-cyan-400" />
       </div>
     );
   }

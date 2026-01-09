@@ -1,20 +1,23 @@
-# backend/app/schemas/agent_schemas.py
-
 from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+from datetime import datetime
 
-# Schéma pour la connexion de l'Agent
-class AgentLogin(BaseModel):
-    """
-    Données nécessaires à la connexion d'un Agent (Email et Mot de passe).
-    """
-    email: EmailStr
-    password: str
+# --- On garde ces schémas pour la structure des données ---
 
-# Schéma pour la modification du mot de passe
-class AgentPasswordReset(BaseModel):
-    """
-    Données nécessaires pour la réinitialisation forcée du mot de passe.
-    """
-    email: EmailStr
-    old_password: str
-    new_password: str
+class ChequeSchema(BaseModel):
+    id: int
+    amount: float
+    beneficiaireName: str
+    status: str
+    date: datetime
+    # Ajoutez d'autres champs selon votre modèle Cheque réel
+    
+    class Config:
+        from_attributes = True
+
+class AgentDashboardData(BaseModel):
+    agentName: str
+    agentEmail: str
+    agentBankId: int
+    cheques_meme_banque: List[ChequeSchema]
+    cheques_autre_banque: List[ChequeSchema]

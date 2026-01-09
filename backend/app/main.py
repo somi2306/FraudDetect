@@ -1,23 +1,34 @@
-# backend/app/main.py
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-# --- Chargement du .env (doit être appelé avant d'importer les modules qui lisent les variables) ---
+# --- Chargement du .env ---
 load_dotenv()
 
 # Imports de la logique de l'application
-from .core.db import create_db_and_tables
-from .routes import auth, users  # corrected: package is `routes`, not `routers`
-from .routes import agents
+from app.core.db import create_db_and_tables
+
+# --- IMPORT UNIFIÉ DES ROUTES ---
+# On combine les routes de votre travail (Admin/Agent) et de l'autre branche (Bénéficiaire/Webhooks)
+from app.routes import auth, users, agents, admin, checks, cheques, webhooks, ws
 
 # --- Initialisation de l'App ---
 app = FastAPI()
 
+# --- Servir le dossier public (Images de chèques) ---
+# Nécessaire pour que le frontend puisse afficher les images stockées dans backend/public
+public_path = os.path.join(os.getcwd(), "public")
+if os.path.exists(public_path):
+    app.mount("/public", StaticFiles(directory=public_path), name="public")
+else:
+    print("⚠️ Attention : Le dossier 'public' n'existe pas. Les images ne seront pas servies.")
+
 # --- Ajout du Middleware CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"], # Supporte les deux ports fréquents
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,15 +40,32 @@ def on_startup():
     create_db_and_tables()
 
 # --- INCLURE LES ROUTEURS ---
-# Inclut toutes les routes définies dans auth.py avec leur préfixe
+
+# 1. Authentification
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# Inclut toutes les routes définies dans users.py
-app.include_router(users.router, prefix="/auth", tags=["Users"])
-#le route de l'agent
-app.include_router(agents.router, prefix="/agents", tags=["Agents Authentication"])
 
+# 2. Gestion des Utilisateurs (Correction du préfixe appliquée)
+app.include_router(users.router, prefix="/users", tags=["Users"])
 
-# --- Route Publique (peut rester ici ou aller dans son propre routeur) ---
+# 3. Espace Admin (Votre fonctionnalité)
+app.include_router(admin.router, prefix="/admin", tags=["Admin Management"])
+
+# 4. Espace Agent (Votre fonctionnalité)
+app.include_router(agents.router, prefix="/agents", tags=["Agents Management"])
+
+# 5. Espace Bénéficiaire (Fonctionnalité fusionnée)
+# Permet la gestion des remises de chèques
+app.include_router(checks.router, tags=["Checks"]) 
+
+# 6. Données Chèques Réels (Supabase)
+app.include_router(cheques.router, prefix="/cheques", tags=["Cheques"])
+
+# 7. Webhooks (Pour la synchro Clerk automatique)
+app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+
+# 8. WebSocket (Notifications en temps réel)
+app.include_router(ws.router, tags=["Websockets"])
+# --- Route Publique ---
 @app.get("/")
 def read_root():
-    return {"message": "Bienvenue sur l'API FraudDetect (Publique)"}
+    return {"message": "Bienvenue sur l'API FraudDetect (Version Unifiée)"}
