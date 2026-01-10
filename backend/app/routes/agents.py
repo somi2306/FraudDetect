@@ -18,6 +18,7 @@ from ..utils.auth import get_current_user
 # --- Services ---
 from ..services.websocket_manager import manager
 from ..services.cheque_reader import detect_and_read_cheque_zones
+from ..services.signature_verifier import verify_signature # <--- IMPORT
 
 router = APIRouter(
     tags=["Agents Management"]
@@ -185,10 +186,18 @@ async def analyze_cheque(
 @router.post("/cheque/validate/{cheque_id}")
 async def validate_cheque(
     cheque_id: int,
-    data: dict = Body(...),
+    data: dict = Body(...), # Les données corrigées (OCR + Agent)
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Valide le chèque :
+    1. Récupère les données corrigées par l'agent.
+    2. Vérifie la signature via le modèle Siamois (IA).
+    3. Enregistre les détails et met à jour le statut (Approved ou rejected).
+    """
+    
+    # 1. Vérification Agent
     clerk_id = current_user.get("user_id")
     agent = db.query(User).filter(User.clerk_id == clerk_id, User.role == UserRole.AGENT).first()
     
@@ -200,22 +209,66 @@ async def validate_cheque(
         raise HTTPException(404, "Chèque introuvable.")
 
     try:
+        # Fonction utilitaire pour extraire la valeur texte en toute sécurité
         def get_val(key):
             return data.get(key, {}).get("text", "")
 
-        # Traitement Date
+        # ---------------------------------------------------------
+        # 2. PRÉPARATION DES DONNÉES
+        # ---------------------------------------------------------
+
+        # A. Traitement de la Date (Parsing robuste)
         raw_date = get_val("Date")
-        date_obj = datetime.now().date()
+        date_obj = datetime.now().date() # Par défaut : aujourd'hui
         try:
             if raw_date:
-                raw_date = raw_date.replace('.', '/').replace('-', '/').replace(' ', '')
-                date_obj = datetime.strptime(raw_date, "%d/%m/%Y").date()
+                # Nettoyage : 29.11.2025 -> 29/11/2025
+                clean_date = raw_date.replace('.', '/').replace('-', '/').replace(' ', '')
+                date_obj = datetime.strptime(clean_date, "%d/%m/%Y").date()
         except ValueError:
             print(f"⚠️ Format de date invalide '{raw_date}', utilisation date du jour.")
 
+        # B. Récupération Signature & Compte pour vérification
         signature_b64 = data.get("Signature", {}).get("base64_image", "")
+        # On utilise le numéro de compte corrigé par l'agent pour trouver la bonne référence
+        num_compte_corrigé = get_val("Num_Compte")
+        # Appel au Siamois
+        if signature_b64 and num_compte_corrigé:
+            is_valid, distance, msg = verify_signature(num_compte_corrigé, signature_b64)
+        # ---------------------------------------------------------
+        # 3. VÉRIFICATION DE LA SIGNATURE (SIAMOIS)
+        # ---------------------------------------------------------
+        
+        signature_status = "Non vérifiée"
+        fraud_score = 0.0 # Distance (plus c'est grand, moins ça ressemble)
+        message_retour = "Chèque validé avec succès."
+        new_status = "approved"
 
-        # Vérification existence
+        if signature_b64 and num_compte_corrigé:
+            print(f"🤖 Lancement vérification signature pour le compte {num_compte_corrigé}...")
+            
+            # Appel au service IA
+            is_valid, distance, msg = verify_signature(num_compte_corrigé, signature_b64)
+            
+            fraud_score = distance
+            
+            if is_valid:
+                signature_status = "Authentique"
+                new_status = "approved"
+                message_retour = f"✅ Signature validée (Distance: {distance:.4f})"
+            else:
+                signature_status = "Suspecte"
+                new_status = "rejected" # On alerte sans bloquer définitivement, ou "rejected"
+                message_retour = f"⚠️ ALERTE FRAUDE : Signature suspecte (Distance: {distance:.4f})"
+                print(f"🚨 ALERTE : Signature divergente pour le chèque {cheque_id}")
+        else:
+            print("⚠️ Pas de signature ou de numéro de compte pour vérification.")
+
+        # ---------------------------------------------------------
+        # 4. SAUVEGARDE EN BASE DE DONNÉES
+        # ---------------------------------------------------------
+
+        # Vérifier si un détail existe déjà (Update vs Create)
         existing_detail = db.query(DetailsCheque).filter(DetailsCheque.cheque_id == cheque.id).first()
 
         if existing_detail:
@@ -223,10 +276,10 @@ async def validate_cheque(
             existing_detail.numero_cheque = get_val("Num_Cheque")
             existing_detail.montant_chiffre = get_val("Montant_Chiffres")
             existing_detail.montant_lettre = get_val("Montant_Lettres")
-            existing_detail.date_emission = date_obj # Correspond au modèle mis à jour
-            existing_detail.lieu = get_val("Lieu")   # Correspond au modèle mis à jour
-            existing_detail.numero_compte = get_val("Num_Compte")
-            existing_detail.beneficiaire = get_val("Beneficiaire") # Correspond au modèle mis à jour
+            existing_detail.date_emission = date_obj
+            existing_detail.lieu = get_val("Lieu")
+            existing_detail.numero_compte = num_compte_corrigé
+            existing_detail.beneficiaire = get_val("Beneficiaire")
             existing_detail.signature = signature_b64
         else:
             # Create
@@ -237,22 +290,29 @@ async def validate_cheque(
                 montant_lettre=get_val("Montant_Lettres"),
                 date_emission=date_obj,
                 lieu=get_val("Lieu"),
-                numero_compte=get_val("Num_Compte"),
+                numero_compte=num_compte_corrigé,
                 beneficiaire=get_val("Beneficiaire"),
                 signature=signature_b64
             )
             db.add(new_detail)
 
-        cheque.status = "approved"
+        # Mise à jour du statut global du chèque
+        cheque.status = new_status
+        
         db.commit()
 
-        return {"status": "success", "message": "Chèque validé et détails enregistrés avec succès."}
+        return {
+            "status": "success", 
+            "message": message_retour, 
+            "cheque_status": new_status,
+            "fraud_score": fraud_score
+        }
 
     except Exception as e:
         db.rollback()
         print(f"❌ Erreur validation chèque: {e}")
         raise HTTPException(500, detail=f"Erreur lors de la sauvegarde : {str(e)}")
-
+    
 # -----------------------------------------------------------------------------
 # 5. TRANSMISSION INTERBANCAIRE
 # -----------------------------------------------------------------------------

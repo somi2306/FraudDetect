@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, XCircle, Loader, Eye } from 'lucide-react';
 import { useBeneficiary } from '../BeneficiaryContext';
-import { getBankThemeById } from '@/config/bankThemes';
+import { getTheme as getBankThemeById } from "@/utils/bankTheme";
+
 
 const getStatusBadge = (statut: string) => {
   const configs: Record<string, { color: string; icon: typeof Clock; label: string }> = {

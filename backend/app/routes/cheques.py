@@ -26,7 +26,7 @@ class ChequeResponse(BaseModel):
     status: Optional[str]
     banque_nom: Optional[str]
     numero_cheque: Optional[str]
-    montant_cheque: Optional[float]
+    montant_cheque: Optional[str] # Modifié en str car montant_chiffre en BDD est str
 
 
 class ChequeStats(BaseModel):
@@ -48,15 +48,7 @@ async def upload_cheque(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Upload a new cheque
-    
-    Args:
-        banque_name: Nom de la banque (ex: "CIH Banque") - optionnel
-        banque_code: Code de banque (ex: "230", "007", "145") - optionnel
-        file: Fichier image du chèque
-        
-    Note: Fournir soit banque_name soit banque_code
-    """
+    """Upload a new cheque"""
     clerk_id = current_user.get("user_id")
     if not clerk_id:
         raise HTTPException(status_code=401, detail="User not authenticated")
@@ -79,14 +71,12 @@ async def upload_cheque(
 
     # Déterminer le bank_id à partir du code ou du nom
     if banque_code:
-        # Si un code de banque est fourni, l'utiliser
         from ..utils.bank_codes import get_bank_id_from_code
         try:
             bank_id = get_bank_id_from_code(banque_code)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
     elif banque_name:
-        # Sinon, utiliser le nom de la banque
         bank_response = supabase.table("banks").select("id").eq("name", banque_name).execute()
         if not bank_response.data or len(bank_response.data) == 0:
             raise HTTPException(status_code=400, detail=f"Bank '{banque_name}' not found")
@@ -100,20 +90,17 @@ async def upload_cheque(
         file_ext = file.filename.split('.')[-1] if file.filename else 'png'
         file_name = f"{user_id}/{uuid.uuid4()}.{file_ext}"
         
-        # Try to create bucket if it doesn't exist
         try:
             supabase.storage.create_bucket("cheques", options={"public": True})
         except Exception:
-            pass  # Bucket may already exist
+            pass
         
-        # Upload to storage bucket 'cheques'
-        storage_response = supabase.storage.from_("cheques").upload(
+        supabase.storage.from_("cheques").upload(
             file_name,
             file_content,
             {"content-type": file.content_type or "image/png"}
         )
         
-        # Get public URL
         image_url = supabase.storage.from_("cheques").get_public_url(file_name)
     except Exception as e:
         print(f"Storage upload error: {e}")
@@ -159,20 +146,16 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
     if not clerk_id:
         raise HTTPException(status_code=401, detail="User not authenticated")
 
-    # Get the user's internal ID from clerk_id
     try:
         user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
         if not user_response.data or len(user_response.data) == 0:
-            # User exists in Clerk but not in Supabase users table yet
-            # Return empty list for now
             return []
         user_id = user_response.data[0]["id"]
     except Exception as e:
         print(f"Erreur lors de la recherche utilisateur Supabase: {e}")
-        # Return empty list if user not found in Supabase
         return []
 
-    # Get cheques with bank name and details
+    # Get cheques
     cheques_response = supabase.table("cheques")\
         .select("id, image_url, date_depot, status, banque_cible_id, banks(name)")\
         .eq("beneficiaire_id", user_id)\
@@ -181,12 +164,11 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
 
     cheques = cheques_response.data or []
 
-    # Get details for each cheque
     result = []
     for cheque in cheques:
-        # Use maybeSingle equivalent - don't use .single() as it throws if no result
-        detail_response = supabase.table("details_cheques")\
-            .select("numero_cheque, montant_cheque")\
+        # CORRECTION ICI : "details_cheque" au singulier
+        detail_response = supabase.table("details_cheque")\
+            .select("numero_cheque, montant_chiffre")\
             .eq("cheque_id", cheque["id"])\
             .limit(1)\
             .execute()
@@ -200,7 +182,7 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
             "status": cheque["status"],
             "banque_nom": cheque.get("banks", {}).get("name") if cheque.get("banks") else None,
             "numero_cheque": detail.get("numero_cheque"),
-            "montant_cheque": detail.get("montant_cheque"),
+            "montant_cheque": detail.get("montant_chiffre"), # Correspondance avec la colonne BDD
         })
 
     return result
@@ -213,35 +195,18 @@ async def get_cheque_stats(current_user: dict = Depends(get_current_user)):
     if not clerk_id:
         raise HTTPException(status_code=401, detail="User not authenticated")
 
-    # Get the user's internal ID
     try:
         user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
         if not user_response.data or len(user_response.data) == 0:
-            # User exists in Clerk but not in Supabase users table yet
             return {"pending": 0, "approved": 0, "rejected": 0}
         user_id = user_response.data[0]["id"]
     except Exception as e:
         print(f"Erreur lors de la recherche utilisateur: {e}")
         return {"pending": 0, "approved": 0, "rejected": 0}
 
-    # Count by status
-    pending_response = supabase.table("cheques")\
-        .select("id", count="exact")\
-        .eq("beneficiaire_id", user_id)\
-        .eq("status", "pending")\
-        .execute()
-    
-    approved_response = supabase.table("cheques")\
-        .select("id", count="exact")\
-        .eq("beneficiaire_id", user_id)\
-        .eq("status", "approved")\
-        .execute()
-    
-    rejected_response = supabase.table("cheques")\
-        .select("id", count="exact")\
-        .eq("beneficiaire_id", user_id)\
-        .eq("status", "rejected")\
-        .execute()
+    pending_response = supabase.table("cheques").select("id", count="exact").eq("beneficiaire_id", user_id).eq("status", "pending").execute()
+    approved_response = supabase.table("cheques").select("id", count="exact").eq("beneficiaire_id", user_id).eq("status", "approved").execute()
+    rejected_response = supabase.table("cheques").select("id", count="exact").eq("beneficiaire_id", user_id).eq("status", "rejected").execute()
 
     return {
         "pending": pending_response.count or 0,
@@ -257,7 +222,6 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
     if not clerk_id:
         raise HTTPException(status_code=401, detail="User not authenticated")
 
-    # Get user ID
     try:
         user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
         if not user_response.data or len(user_response.data) == 0:
@@ -269,7 +233,6 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
         print(f"Erreur lors de la recherche utilisateur: {e}")
         raise HTTPException(status_code=500, detail="Database error")
 
-    # Get the cheque
     cheque_response = supabase.table("cheques")\
         .select("id, image_url, date_depot, status, banque_cible_id, banks(name)")\
         .eq("id", cheque_id)\
@@ -282,9 +245,9 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
 
     cheque = cheque_response.data
 
-    # Get details
-    detail_response = supabase.table("details_cheques")\
-        .select("numero_cheque, montant_cheque")\
+    # CORRECTION ICI : "details_cheque" au singulier
+    detail_response = supabase.table("details_cheque")\
+        .select("numero_cheque, montant_chiffre")\
         .eq("cheque_id", cheque_id)\
         .single()\
         .execute()
@@ -298,5 +261,5 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
         "status": cheque["status"],
         "banque_nom": cheque.get("banks", {}).get("name") if cheque.get("banks") else None,
         "numero_cheque": detail.get("numero_cheque"),
-        "montant_cheque": detail.get("montant_cheque"),
+        "montant_cheque": detail.get("montant_chiffre"),
     }
