@@ -42,3 +42,6 @@ _pycache_/
 
 /backend/runs/*
 !/backend/runs/.gitkeep
+
+/backend/app/siamois/*
+!/backend/app/siamois/.gitkeep

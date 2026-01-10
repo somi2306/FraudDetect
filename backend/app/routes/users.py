@@ -119,7 +119,7 @@ async def update_profile(
         db_user.last_name = profile_data.lastName
     if profile_data.imageUrl is not None:
         db_user.image_url = profile_data.imageUrl
-
+    
     db.commit()
     db.refresh(db_user)
 
