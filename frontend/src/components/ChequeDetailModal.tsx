@@ -224,7 +224,7 @@ const ChequeDetailModal: React.FC<ChequeDetailModalProps> = ({
     if (loading) return { text: "Traitement en cours...", color: themeHex, disabled: true };
     if (!isInternal) return { text: "➡️ Transmettre à la Banque Cible", color: '#2563EB', disabled: false };
     if (!analysisData) return { text: "🔍 Lancer l'Analyse IA", color: themeHex, disabled: false };
-    return { text: "✅ Valider le Traitement", color: '#059669', disabled: false };
+    return { text: "Valider le Traitement", color: '#059669', disabled: false };
   };
 
   const btnConfig = getButtonConfig();
