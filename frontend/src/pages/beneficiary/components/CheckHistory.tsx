@@ -22,12 +22,12 @@ const getStatusBadge = (statut: string) => {
 };
 
 const CheckHistory = () => {
-  const { checks, loading, error } = useBeneficiary();
+  const { checks, loading, error, theme } = useBeneficiary();
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader className="w-8 h-8 animate-spin" style={{ color: theme.hex }} />
       </div>
     );
   }
@@ -49,28 +49,37 @@ const CheckHistory = () => {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Numéro</TableHead>
-          <TableHead>Banque</TableHead>
-          <TableHead>Montant</TableHead>
-          <TableHead>Date de dépôt</TableHead>
-          <TableHead>Statut</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {checks.map((check) => (
-          <TableRow key={check.id}>
-            <TableCell>{check.numero}</TableCell>
-            <TableCell>{check.banque}</TableCell>
-            <TableCell>{check.montant.toLocaleString()} MAD</TableCell>
-            <TableCell>{check.dateDepot}</TableCell>
-            <TableCell>{getStatusBadge(check.statut)}</TableCell>
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="p-4 border-b-2" style={{ borderBottomColor: theme.hex }}>
+        <h2 className="text-xl font-bold" style={{ color: theme.hex }}>Historique des chèques</h2>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow style={{ backgroundColor: `${theme.hex}10` }}>
+            <TableHead>Numéro</TableHead>
+            <TableHead>Banque</TableHead>
+            <TableHead>Montant</TableHead>
+            <TableHead>Date de dépôt</TableHead>
+            <TableHead>Statut</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {checks.map((check) => (
+            <TableRow key={check.id} className="hover:bg-gray-50">
+              <TableCell className="font-medium">
+                {check.numero ? check.numero : 'En attente de traitement'}
+              </TableCell>
+              <TableCell>{check.banque}</TableCell>
+              <TableCell>
+                {check.montant == null ? 'En attente de traitement' : `${check.montant.toLocaleString()} MAD`}
+              </TableCell>
+              <TableCell>{check.dateDepot}</TableCell>
+              <TableCell>{getStatusBadge(check.statut)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

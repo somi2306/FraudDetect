@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
+import re
 
 from ..utils.auth import get_current_user
 from ..core.db import get_db
@@ -16,7 +17,7 @@ router = APIRouter()
 
 class ChequeDetail(BaseModel):
     numero_cheque: str
-    montant_cheque: float
+    montant_chiffre: str
 
 
 class ChequeResponse(BaseModel):
@@ -25,8 +26,37 @@ class ChequeResponse(BaseModel):
     date_depot: str
     status: Optional[str]
     banque_nom: Optional[str]
+    banque_id: Optional[int]
     numero_cheque: Optional[str]
-    montant_cheque: Optional[str] # Modifié en str car montant_chiffre en BDD est str
+    montant_cheque: Optional[float] # Typé en float grâce à _parse_amount
+
+
+def _parse_amount(value: object) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    # Keep digits, separators and minus; drop currency/text.
+    cleaned = re.sub(r"[^0-9,\.\-]", "", text)
+    if not cleaned:
+        return None
+
+    # Heuristic: if both ',' and '.', assume ',' are thousands separators.
+    if "," in cleaned and "." in cleaned:
+        cleaned = cleaned.replace(",", "")
+    else:
+        # If only comma exists, treat it as decimal separator.
+        cleaned = cleaned.replace(",", ".")
+
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
 
 
 class ChequeStats(BaseModel):
@@ -166,14 +196,17 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
 
     result = []
     for cheque in cheques:
-        # CORRECTION ICI : "details_cheque" au singulier
-        detail_response = supabase.table("details_cheque")\
-            .select("numero_cheque, montant_chiffre")\
-            .eq("cheque_id", cheque["id"])\
-            .limit(1)\
-            .execute()
-        
-        detail = detail_response.data[0] if detail_response.data else {}
+        # Use maybeSingle equivalent - don't use .single() as it throws if no result
+        try:
+            detail_response = supabase.table("details_cheque")\
+                .select("numero_cheque, montant_chiffre")\
+                .eq("cheque_id", cheque["id"])\
+                .limit(1)\
+                .execute()
+            detail = detail_response.data[0] if detail_response.data else {}
+        except Exception as e:
+            print(f"Erreur Supabase details_cheque pour cheque_id={cheque.get('id')}: {e}")
+            detail = {}
         
         result.append({
             "id": cheque["id"],
@@ -181,8 +214,9 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
             "date_depot": cheque["date_depot"],
             "status": cheque["status"],
             "banque_nom": cheque.get("banks", {}).get("name") if cheque.get("banks") else None,
+            "banque_id": cheque.get("banque_cible_id"),
             "numero_cheque": detail.get("numero_cheque"),
-            "montant_cheque": detail.get("montant_chiffre"), # Correspondance avec la colonne BDD
+            "montant_cheque": _parse_amount(detail.get("montant_chiffre")),
         })
 
     return result
@@ -245,14 +279,17 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
 
     cheque = cheque_response.data
 
-    # CORRECTION ICI : "details_cheque" au singulier
-    detail_response = supabase.table("details_cheque")\
-        .select("numero_cheque, montant_chiffre")\
-        .eq("cheque_id", cheque_id)\
-        .single()\
-        .execute()
-    
-    detail = detail_response.data if detail_response.data else {}
+    # Get details
+    try:
+        detail_response = supabase.table("details_cheque")\
+            .select("numero_cheque, montant_chiffre")\
+            .eq("cheque_id", cheque_id)\
+            .limit(1)\
+            .execute()
+        detail = detail_response.data[0] if detail_response.data else {}
+    except Exception as e:
+        print(f"Erreur Supabase details_cheque pour cheque_id={cheque_id}: {e}")
+        detail = {}
 
     return {
         "id": cheque["id"],
@@ -261,5 +298,5 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
         "status": cheque["status"],
         "banque_nom": cheque.get("banks", {}).get("name") if cheque.get("banks") else None,
         "numero_cheque": detail.get("numero_cheque"),
-        "montant_cheque": detail.get("montant_chiffre"),
+        "montant_cheque": _parse_amount(detail.get("montant_chiffre")),
     }
