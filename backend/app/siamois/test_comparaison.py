@@ -1,167 +1,148 @@
-import os
-import cv2
 import numpy as np
-import base64
-import pandas as pd
 import tensorflow as tf
-from tensorflow.keras.models import load_model, Model
-import tensorflow.keras.backend as K
+from tensorflow.keras.models import load_model
+import os
 
-# --- Imports Locaux ---
-from app.siamois.train import triplet_loss
-from app.siamois.model import normalize_embedding
+# ============================================================
+# IMPORTS LOCAUX (fonctions créées dans les autres fichiers)
+# ============================================================
+# preprocess_image : prépare une image (taille, normalisation…)
+from .dataset import preprocess_image
 
-# --- Configuration ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, "siamois", "siamese_best_model.h5")
-DATA_SIGN_DIR = os.path.join(BASE_DIR, "data", "sign_data")
-CSV_MAPPING_PATH = os.path.join(BASE_DIR, "data", "sign.xlsx - Feuil1.csv")
+# triplet_loss : fonction de perte utilisée à l'entraînement
+# (obligatoire pour recharger le modèle)
+from .train import triplet_loss
 
-IMG_HEIGHT = 100
-IMG_WIDTH = 200
+# normalize_embedding : normalisation du vecteur de signature
+# (également nécessaire au chargement du modèle)
+from .model import normalize_embedding
+
+
+# ============================================================
+# 1) CONFIGURATION GÉNÉRALE
+# ============================================================
+# Chemin vers le modèle entraîné (sauvegardé précédemment)
+# Il est situé dans le même dossier que ce script
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'siamese_best_model.h5')
+
+# Seuil de décision :
+# - si la distance entre deux signatures est INFÉRIEURE à ce seuil
+#   → signatures considérées comme similaires
+# - sinon → signatures différentes
 SEUIL_DE_DECISION = 0.5
 
-# Variable globale pour stocker le "Cœur" du modèle (Base CNN)
-BASE_CNN_MODEL = None
 
-# --- Fonctions Utilitaires ---
+# ============================================================
+# 2) FONCTION DE COMPARAISON DE DEUX SIGNATURES
+# ============================================================
+def compare_two_signatures(path_img1, path_img2):
+    """
+    Compare deux images de signatures et affiche le résultat.
 
-def normalize_embedding_tf(z):
-    return K.l2_normalize(z, axis=1)
+    Entrées :
+    - path_img1 : chemin vers la première image
+    - path_img2 : chemin vers la deuxième image
 
-def preprocess_image_from_array(img_array):
-    """Prépare une image (resize, grayscale, normalisation)"""
+    Sortie :
+    - Affichage de la distance calculée
+    - Verdict : signatures similaires ou différentes
+    """
+
+    # --------------------------------------------------------
+    # 1) Charger le modèle entraîné
+    # --------------------------------------------------------
     try:
-        if img_array is None: return None
-        # Convertir en niveaux de gris si nécessaire
-        if len(img_array.shape) == 3:
-            img = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
-        else:
-            img = img_array
-            
-        img = cv2.resize(img, (IMG_WIDTH, IMG_HEIGHT))
-        img = img.astype("float32") / 255.0
-        
-        # On n'ajoute qu'une seule dimension batch : (1, 100, 200, 1)
-        # Contrairement à l'autre méthode, on ne duplique PAS ici.
-        img = np.expand_dims(img, axis=-1)
-        img = np.expand_dims(img, axis=0)
-        return img
-    except Exception as e:
-        print(f"Erreur preprocess: {e}")
-        return None
-
-def load_siamese_model():
-    """
-    Charge le modèle complet et extrait le sous-modèle 'Base_CNN'.
-    C'est la méthode PROPRE utilisée dans test_comparaison.py
-    """
-    global BASE_CNN_MODEL
-    if BASE_CNN_MODEL is None:
+        # Vérifier que le fichier du modèle existe
         if not os.path.exists(MODEL_PATH):
-            print(f"⚠️ ERREUR : Modèle introuvable à {MODEL_PATH}")
-            return None
-        try:
-            print("⏳ Chargement du modèle Siamois complet...")
-            # 1. Chargement du gros modèle (safe_mode=False pour Lambda layers)
-            full_model = load_model(
-                MODEL_PATH,
-                custom_objects={'triplet_loss': triplet_loss, 'normalize_embedding': normalize_embedding_tf},
-                safe_mode=False,
-                compile=False
-            )
-            
-            # 2. EXTRACTION DU CŒUR (Base_CNN)
-            # Exactement comme dans votre fichier de test :
-            # embedding_model = tf.keras.Model(inputs=..., outputs=...)
-            BASE_CNN_MODEL = tf.keras.Model(
-                inputs=full_model.get_layer('Base_CNN').input,
-                outputs=full_model.get_layer('Base_CNN').output
-            )
-            print("✅ Cœur du modèle (Base_CNN) extrait avec succès.")
+            print(f"❌ Erreur : Le fichier du modèle n'existe pas à l'emplacement : {MODEL_PATH}")
+            return
 
-            # 3. Warm-up (Préchauffage)
-            print("🔥 Préchauffage du modèle optimisé...")
-            dummy = np.zeros((1, IMG_HEIGHT, IMG_WIDTH, 1), dtype=np.float32)
-            # Ici, on ne passe qu'UNE SEULE image, pas 3 !
-            BASE_CNN_MODEL.predict(dummy, verbose=0)
-            
-            print("✅ Modèle prêt et chaud (Optimisé).")
-        except Exception as e:
-            print(f"❌ Impossible de charger le modèle : {e}")
-            return None
-    return BASE_CNN_MODEL
+        # Charger le modèle complet (réseau siamois)
+        # custom_objects est obligatoire car :
+        # - triplet_loss
+        # - normalize_embedding
+        # ne font pas partie de TensorFlow par défaut
+        full_model = load_model(
+            MODEL_PATH,
+            custom_objects={
+                'triplet_loss': triplet_loss,
+                'normalize_embedding': normalize_embedding
+            }
+        )
 
-def get_reference_signature_path(account_number: str):
-    folder_id = None
-    # 1. Recherche via CSV (Placeholder)
-    if os.path.exists(CSV_MAPPING_PATH):
-        try:
-            # df = pd.read_csv(CSV_MAPPING_PATH)
-            pass
-        except Exception:
-            pass
+        # ----------------------------------------------------
+        # Extraire uniquement le modèle d'embedding (Base_CNN)
+        # ----------------------------------------------------
+        # On ne veut PAS comparer des triplets ici,
+        # mais seulement transformer une image en vecteur.
+        embedding_model = tf.keras.Model(
+            inputs=full_model.get_layer('Base_CNN').input,
+            outputs=full_model.get_layer('Base_CNN').output
+        )
 
-    # 2. Fallback : 3 derniers chiffres
-    if not folder_id and len(str(account_number)) >= 3:
-        folder_id = str(int(account_number[-3:])).zfill(3)
+        print("✅ Modèle chargé avec succès.")
 
-    if not folder_id: return None
-
-    folder_path = os.path.join(DATA_SIGN_DIR, folder_id)
-    if not os.path.exists(folder_path):
-        return None
-
-    files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.png', '.jpeg'))])
-    return os.path.join(folder_path, files[0]) if files else None
-
-def verify_signature(account_number: str, base64_signature: str):
-    """
-    Compare :
-    1. Signature Référence (Disque Local)
-    2. Signature Chèque (Reçue en Base64 depuis le frontend)
-    """
-    model = load_siamese_model()
-    if not model:
-        return False, 0.0, "Erreur chargement modèle"
-
-    # --- A. PRÉPARATION SIGNATURE DU CHÈQUE (Transmise) ---
-    try:
-        if "," in base64_signature:
-            base64_signature = base64_signature.split(",")[1]
-        img_data = base64.b64decode(base64_signature)
-        np_arr = np.frombuffer(img_data, np.uint8)
-        img_question_raw = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     except Exception as e:
-        return False, 0.0, f"Image invalide: {e}"
+        print(f"❌ Erreur chargement modèle : {e}")
+        return
 
-    # --- B. PRÉPARATION SIGNATURE DE RÉFÉRENCE (Locale) ---
-    ref_path = get_reference_signature_path(account_number)
-    if not ref_path:
-        return False, 1.0, "Pas de signature de référence"
+    # --------------------------------------------------------
+    # 2) Prétraiter les deux images
+    # --------------------------------------------------------
+    try:
+        # Charger + redimensionner + normaliser les images
+        img1 = preprocess_image(path_img1)
+        img2 = preprocess_image(path_img2)
 
-    img_ref_raw = cv2.imread(ref_path)
-    if img_ref_raw is None:
-        return False, 1.0, "Erreur lecture référence"
+    except Exception as e:
+        print(f"❌ Erreur lecture images : {e}")
+        return
 
-    # --- C. PRÉTRAITEMENT ---
-    img_Q = preprocess_image_from_array(img_question_raw) # Question (Chèque)
-    img_A = preprocess_image_from_array(img_ref_raw)      # Anchor (Référence)
+    # Ajouter la dimension "batch"
+    # Le modèle attend une entrée de forme :
+    # (nombre_d_images, hauteur, largeur, canaux)
+    img1 = np.expand_dims(img1, axis=0)
+    img2 = np.expand_dims(img2, axis=0)
 
-    if img_Q is None or img_A is None:
-        return False, 0.0, "Erreur prétraitement"
+    # --------------------------------------------------------
+    # 3) Générer les embeddings (vecteurs numériques)
+    # --------------------------------------------------------
+    # Chaque signature est transformée en un vecteur de 512 valeurs
+    emb1 = embedding_model.predict(img1)
+    emb2 = embedding_model.predict(img2)
 
-    # --- D. PRÉDICTION (1 par 1) ---
-    # On utilise le modèle extrait, donc on passe 1 image à la fois.
-    # C'est ici qu'on évite la duplication inutile.
-    emb_Q = model.predict(img_Q, verbose=0)
-    emb_A = model.predict(img_A, verbose=0)
+    # --------------------------------------------------------
+    # 4) Calculer la distance entre les deux signatures
+    # --------------------------------------------------------
+    # Distance euclidienne au carré :
+    # - petite distance  → signatures proches (similaires)
+    # - grande distance → signatures éloignées (différentes)
+    distance = np.sum(np.square(emb1 - emb2))
 
-    # --- E. CALCUL DISTANCE ---
-    distance = np.sum(np.square(emb_Q - emb_A))
-    is_valid = distance < SEUIL_DE_DECISION
+    # --------------------------------------------------------
+    # 5) Affichage du résultat
+    # --------------------------------------------------------
+    print("\n" + "=" * 40)
+    print(f"Image 1 : {os.path.basename(path_img1)}")
+    print(f"Image 2 : {os.path.basename(path_img2)}")
+    print(f"DISTANCE calculée : {distance:.4f}")
 
-    icon = "✅" if is_valid else "❌"
-    print(f"🔍 Vérif Signature [Compte {account_number}] : Dist={distance:.4f} {icon}")
+    if distance < SEUIL_DE_DECISION:
+        print(f"RÉSULTAT : ✅ SIGNATURES SIMILAIRES (< {SEUIL_DE_DECISION})")
+    else:
+        print(f"RÉSULTAT : ❌ SIGNATURES DIFFÉRENTES (> {SEUIL_DE_DECISION})")
 
-    return is_valid, float(distance), "Succès"
+    print("=" * 40)
+
+
+# ============================================================
+# 3) BLOC PRINCIPAL (exécution directe du script)
+# ============================================================
+if __name__ == "__main__":
+    # Exemples de chemins vers deux signatures à comparer
+    # (à adapter selon votre organisation de fichiers)
+    img_A = "app/data/sign_data/001/1-001_01.jpg"
+    img_B = "app/data/sign_data/001_forg/1-002_01.jpg"
+
+    print("Lancement du test de comparaison...")
+    compare_two_signatures(img_A, img_B)
