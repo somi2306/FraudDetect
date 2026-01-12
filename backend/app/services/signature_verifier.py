@@ -28,7 +28,7 @@ DATA_SIGN_DIR = os.path.join(BASE_DIR, "data", "sign_data")
 # Assurez-vous que ce fichier est bien présent dans backend/app/data/
 CSV_MAPPING_PATH = os.path.join(BASE_DIR, "data", "clients_training_map.csv")
 
-SEUIL_DE_DECISION = 0.5 
+SEUIL_DE_DECISION = 1.0  # Ajustez selon vos tests
 EMBEDDING_MODEL = None
 
 # ============================================================
@@ -36,13 +36,6 @@ EMBEDDING_MODEL = None
 # ============================================================
 
 def preprocess_image_from_array(img_array):
-    """
-    Prépare l'image :
-    1. Grayscale
-    2. Suppression du fond (Binarisation Otsu) -> ESSENTIEL pour les chèques
-    3. Redimensionnement
-    4. Normalisation
-    """
     try:
         if img_array is None:
             return None
@@ -53,33 +46,18 @@ def preprocess_image_from_array(img_array):
         else:
             img = img_array
             
-        # ---------------------------------------------------------
-        # ÉTAPE CLÉ : SUPPRESSION DU FOND (Noise Removal)
-        # ---------------------------------------------------------
-        
-        # A. Flou gaussien pour réduire le bruit (points isolés)
-        img = cv2.GaussianBlur(img, (5, 5), 0)
-        
-        # B. Binarisation d'Otsu
-        # Cette méthode calcule automatiquement le seuil optimal pour séparer 
-        # l'encre (sombre) du papier (clair).
-        # Tout ce qui est fond devient BLANC (255), l'encre reste NOIRE (0).
-        _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        
-        # (Optionnel) Si vos références sont inversées (Blanc sur Noir), 
-        # inversez aussi ici avec : img = cv2.bitwise_not(img)
-        # Mais standardement, on garde Noir sur Blanc.
-        
-        # ---------------------------------------------------------
-
-        # 2. Redimensionnement (100x200)
+        # 2. Amélioration du contraste (CLAHE) au lieu d'Otsu
+        # Cela uniformise l'éclairage sans détruire la forme de la signature
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        img = clahe.apply(img)
+        img = cv2.bitwise_not(img) # Inverse les couleurs
+        # 3. Redimensionnement (100x200)
         img = cv2.resize(img, (IMG_WIDTH, IMG_HEIGHT))
         
-        # 3. Normalisation [0, 1] et conversion Float32
-        # Comme on a binarisé, on aura surtout des 0.0 et des 1.0
+        # 4. Normalisation standard (Z-score ou 0-1)
         img = img.astype("float32") / 255.0
         
-        # 4. Ajout des dimensions batch et canal
+        # 5. Ajout des dimensions
         img = np.expand_dims(img, axis=-1)
         img = np.expand_dims(img, axis=0)
         

@@ -11,7 +11,7 @@ from datetime import datetime
 from ..core.db import get_db
 from ..models.user import User, UserRole
 from ..models.bank import Bank
-from ..models.cheque import Cheque
+from ..models.cheque import CheckStatus, Cheque
 from ..models.details_cheque import DetailsCheque
 from ..utils.auth import get_current_user
 
@@ -68,7 +68,8 @@ def get_my_cheques(
         .join(User, Cheque.beneficiaire_id == User.id)
         .filter(
             User.bank_id == agent.bank_id,
-            Cheque.status.in_(["pending", "uploaded"])
+            # Utilise l'Enum ici pour être sûr de matcher ce qu'il y a en base
+            Cheque.status.in_([CheckStatus.PENDING, CheckStatus.UPLOADED]) 
         )
     )
 
@@ -349,7 +350,7 @@ async def transmettre_cheque(
     if not agent_cible:
         raise HTTPException(404, "Aucun agent disponible trouvé pour la banque cible.")
 
-    cheque.status = "transmitted"
+    cheque.status = CheckStatus.TRANSMITTED # Au lieu de "transmitted"
     cheque.agent_actuel_id = agent_cible.id
 
     db.commit()
@@ -463,7 +464,11 @@ def get_cheques_traite(
         .options(joinedload(Cheque.beneficiaire))
         .filter(
             Cheque.agent_actuel_id == agent.id, 
-            Cheque.status.in_(["rejected", "approved", "validated"])
+            Cheque.status.in_([
+                CheckStatus.REJECTED, 
+                CheckStatus.APPROVED, 
+                CheckStatus.TRANSMITTED # Optionnel, selon ta logique
+            ])
         )
         .all()
     )

@@ -11,7 +11,7 @@ from ..utils.auth import get_current_user
 from ..core.db import get_db
 from ..core.config import supabase
 from ..models.user import User
-
+from ..models.cheque import CheckStatus
 router = APIRouter()
 
 
@@ -143,7 +143,7 @@ async def upload_cheque(
             "date_depot": datetime.now().isoformat(),
             "beneficiaire_id": user_id,
             "banque_cible_id": bank_id,
-            "status": "pending",
+            "status": CheckStatus.PENDING.value
         }
         
         cheque_response = supabase.table("cheques").insert(cheque_data).execute()

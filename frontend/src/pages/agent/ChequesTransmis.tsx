@@ -26,6 +26,11 @@ const ChequesTransmisPage = () => {
         })();
     }, []);
 
+    const refresh = async () => {
+        const ch = await getChequesTransmis();
+        setCheques(ch);
+    };
+
     if (!agent) return <p>Chargement...</p>;
 
     return (
@@ -50,9 +55,9 @@ const ChequesTransmisPage = () => {
             <ChequeDetailModal
                 cheque={selectedCheque}
                 onClose={() => setSelectedCheque(null)}
-                isInternal={true}
+                isInternal={false}
                 themeHex={getTheme(agent.bankId).hex}
-                onProcess={() => {}}
+                onProcess={async (_chequeId:any, _data?: any) => { await refresh(); }}
                 agentId={Number(agent.bankId)}
             />
         </AgentLayout>

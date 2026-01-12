@@ -75,3 +75,19 @@ async def set_clerk_password(user_id: str, password: str):
             raise Exception(f"[Clerk Password] {response.status_code} - {response.text}")
 
         return response.json()
+# ... (Gardez les imports et variables existants)
+
+# AJOUTEZ CETTE FONCTION À LA FIN DU FICHIER
+async def delete_clerk_user(user_id: str):
+    """Supprime un utilisateur de Clerk définitivement"""
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(
+            f"{CLERK_API_URL}/users/{user_id}",
+            headers=headers
+        )
+        
+        # 200 = Supprimé, 404 = Déjà supprimé (donc c'est bon)
+        if response.status_code not in [200, 204, 404]:
+            raise Exception(f"Erreur Suppression Clerk ({response.status_code}): {response.text}")
+            
+        return True
